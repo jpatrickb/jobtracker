@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.egg-info/
+dist/
+build/
+.venv/
+*.pyc
+
+# Typst / PDF build output from smoke tests
+*.pdf
+
+# OS
+.DS_Store
+
+# Local scratch
+tmp/
+*.tmp
