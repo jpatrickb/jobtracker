@@ -65,9 +65,16 @@ log "jobtracker installed. Launching setup..."
 # rich's Confirm/Prompt, which read interactively from stdin, so calling it naively here would
 # either hang on a closed pipe or silently fail. Reconnect it to the real terminal via /dev/tty
 # when one exists; otherwise, don't try to be clever -- just tell the user the one command to run.
+#
+# Deliberately not `[ -r /dev/tty ]`: on a process with no controlling terminal at all (e.g.
+# `docker run` without `-t`), opening /dev/tty fails with ENXIO, and bash's `test`/`[` builtin
+# surfaces that as a hard runtime error rather than a clean false -- which then trips `set -e`
+# and kills the whole script instead of falling through to the instructions below. Probing the
+# open in a subshell keeps the failed-redirection error (and any fd changes) scoped to that
+# subshell, so only its exit status reaches the `elif`, which `set -e` doesn't treat as fatal.
 if [ -t 0 ]; then
   jobtracker setup
-elif [ -r /dev/tty ]; then
+elif (exec 3</dev/tty) 2>/dev/null; then
   jobtracker setup </dev/tty
 else
   echo
