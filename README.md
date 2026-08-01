@@ -163,8 +163,7 @@ format.
 
 Beyond Claude Code (the primary target, described throughout the rest of this README), the 3
 dispatchable agents (`job-scorer`, `resume-reviewer`, `tailor-application`) have also been ported
-to. Skills need no separate port on any of these — `npx skills add jpatrickb/jobtracker` (above)
-already covers all 3 skills everywhere it targets.
+to:
 
 - **Codex** — ported to Codex's native project-scoped custom-agent format at
   `.codex/agents/*.toml`, discovered automatically with no extra install step. See
@@ -184,6 +183,9 @@ already covers all 3 skills everywhere it targets.
   Cursor subagents have no per-tool allowlist (unlike Claude Code's `tools:` frontmatter) — the
   only scoping lever is `readonly: true`/`false`, chosen per agent and explained in a comment in
   each file's own frontmatter.
+
+Skills need no separate port on any of these platforms — `npx skills add jpatrickb/jobtracker`
+("Skills on other agents" above) already covers all 3 skills everywhere it targets.
 
 ## License
 
