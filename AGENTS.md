@@ -69,7 +69,12 @@ sandboxing approach in the repo's own development notes — a container with not
 
 ## What's not built yet
 
-See open issues on this repo, in particular: the setup wizard is currently plain y/n prompts and
-should move to arrow-key select menus; the plugin only targets Claude Code today (Codex/Kilo
-Code/Cursor/Pi ports are tracked as separate issues); it isn't published on PyPI yet (see
-`PUBLISHING.md` for the one-time linking step still outstanding).
+See open issues on this repo. As of the ports landing, the setup wizard has arrow-key select
+menus (with a numbered-list fallback for non-interactive use), and the plugin's 3 dispatchable
+agents (`job-scorer`, `resume-reviewer`, `tailor-application`) are ported to Codex (`.codex/`),
+Kilo Code (`.kilo/`), Cursor (`.cursor-plugin/`, `cursor-agents/`), and Pi (`pi/`) alongside the
+original Claude Code plugin — see README's "Supported platforms" section. The 3 skills are
+covered on all of those via `npx skills add jpatrickb/jobtracker` rather than a per-platform port.
+The package still isn't published on PyPI (see `PUBLISHING.md` for the one-time linking step still
+outstanding) — note this means `.claude-plugin/plugin.json`'s version and the `pyproject.toml`
+version haven't been bumped past `0.1.0` yet either, worth doing as part of that first publish.
