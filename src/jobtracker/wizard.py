@@ -9,9 +9,10 @@ import subprocess
 from pathlib import Path
 
 from rich.console import Console
-from rich.prompt import Confirm, IntPrompt, Prompt
+from rich.prompt import IntPrompt, Prompt
 
 from . import config
+from .curses_ui import prompt_choice
 from .init import scaffold
 from .store import MARKER_DIRNAME
 
@@ -43,11 +44,12 @@ def _step_data_directory(console):
 
     if marker.is_dir():
         console.print(f"\n{target} is already a jobtracker data directory.")
-        reinit = Confirm.ask(
+        reinit = prompt_choice(
+            console,
             "Reinitialize it? (resets scaffolded files back to their templates; your "
             ".jobtracker/applications.json is untouched either way)",
-            default=False,
-        )
+            ["No", "Yes"], default="No",
+        ) == "Yes"
         if reinit:
             created = scaffold(target, force=True)
             console.print(f"\nReinitialized {target}.")
@@ -80,11 +82,13 @@ def _step_hard_gates(console, target):
 
     gates = []
 
-    if Confirm.ask("Do you have a minimum compensation requirement?", default=False):
+    if prompt_choice(
+        console, "Do you have a minimum compensation requirement?", ["No", "Yes"], default="No",
+    ) == "Yes":
         amount = IntPrompt.ask("What's the minimum? (just the number, e.g. 150000 or 75)")
-        basis = Prompt.ask(
-            "Is that an annual salary or an hourly rate?",
-            choices=["annual", "hourly"], default="annual",
+        basis = prompt_choice(
+            console, "Is that an annual salary or an hourly rate?",
+            ["annual", "hourly"], default="annual",
         )
         if basis == "annual":
             condition = f"base salary disclosed AND < ${amount:,}"
@@ -96,7 +100,10 @@ def _step_hard_gates(console, target):
             "reject_message": "Below comp floor",
         })
 
-    if Confirm.ask("\nDo you have a location or remote-work requirement?", default=False):
+    if prompt_choice(
+        console, "\nDo you have a location or remote-work requirement?",
+        ["No", "Yes"], default="No",
+    ) == "Yes":
         description = Prompt.ask(
             "Describe it in a sentence (e.g. 'must be fully remote, or onsite/hybrid within "
             "commuting distance of Austin, TX')"
@@ -108,11 +115,12 @@ def _step_hard_gates(console, target):
         })
 
     console.print()
-    while Confirm.ask(
+    while prompt_choice(
+        console,
         "Any other hard requirement that should auto-reject a posting (visa sponsorship, "
         "security clearance, something else)?",
-        default=False,
-    ):
+        ["No", "Yes"], default="No",
+    ) == "Yes":
         name = Prompt.ask("Short name for this requirement (e.g. 'Visa sponsorship')")
         condition = Prompt.ask("One-sentence condition that should cause an auto-reject")
         gates.append({
@@ -197,7 +205,9 @@ def _step_rubric_weights(console, target):
     else:
         console.print("  (couldn't find dimension headings in RUBRIC.md to summarize)")
 
-    keep = Confirm.ask("\nKeep these defaults for now?", default=True)
+    keep = prompt_choice(
+        console, "\nKeep these defaults for now?", ["Yes", "No"], default="Yes",
+    ) == "Yes"
     if not keep:
         console.print(
             "No problem -- edit RUBRIC.md directly whenever you're ready, or revisit it through "
@@ -229,7 +239,7 @@ def _step_resume_import(console, target):
         imported.append(str(dest.relative_to(target)))
         console.print(f"Imported -> {dest.relative_to(target)}")
 
-        if not Confirm.ask("Add another?", default=False):
+        if prompt_choice(console, "Add another?", ["No", "Yes"], default="No") != "Yes":
             break
         path_str = Prompt.ask("Enter another file path, or press Enter to skip", default="")
 
@@ -248,7 +258,9 @@ def _step_claude_plugin(console):
         return False, False
 
     console.print("\n[bold]Claude Code plugin[/bold]\n")
-    if not Confirm.ask("Set up the Claude Code plugin now?", default=True):
+    if prompt_choice(
+        console, "Set up the Claude Code plugin now?", ["Yes", "No"], default="Yes",
+    ) != "Yes":
         console.print("Skipping. Run these yourself whenever you're ready:")
         for cmd_args in CLAUDE_COMMANDS:
             console.print(f"  claude {' '.join(cmd_args)}")
