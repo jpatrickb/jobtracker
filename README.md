@@ -140,14 +140,6 @@ several tools are converging on — rather than something Claude-specific. `CLAU
 symlink to it, so Claude Code (which specifically looks for that filename) reads the exact same
 content with zero duplication.
 
-### Supported platforms
-
-Beyond Claude Code, agent dispatch (the 3 agents in `agents/` — run independently, safe to fire off
-several at once, one instance per posting) has been ported to:
-
-- **[Pi](https://pi.dev)** — see `pi/README.md` for install and usage. Skills need no separate port;
-  `npx skills add` (below) already covers them on Pi.
-
 ### Skills on other agents
 
 The three skills in `skills/` (`resume-update`, `resume-onboarding`, `submit-application`) are
@@ -191,6 +183,7 @@ to:
   Cursor subagents have no per-tool allowlist (unlike Claude Code's `tools:` frontmatter) — the
   only scoping lever is `readonly: true`/`false`, chosen per agent and explained in a comment in
   each file's own frontmatter.
+- **[Pi](https://pi.dev)** — see `pi/README.md` for install and usage.
 
 Skills need no separate port on any of these platforms — `npx skills add jpatrickb/jobtracker`
 ("Skills on other agents" above) already covers all 3 skills everywhere it targets.
