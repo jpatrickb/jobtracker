@@ -131,6 +131,12 @@ the setup wizard short — edit these directly if you want something different:
 - **Scoring agent's model** — set via `model:` in `job-scorer`'s frontmatter after installing the
   plugin.
 
+## Supported platforms
+
+- **Codex** — the 3 agents are ported to Codex's native custom-agent format at
+  `.codex/agents/*.toml`; skills are already covered by `npx skills add jpatrickb/jobtracker` (see
+  [CODEX.md](CODEX.md) for setup and the bulk-dispatch pattern).
+
 ## Other coding agents
 
 `jobtracker` is built for Claude Code today. Support for other coding agents (Codex, Cursor, and
@@ -157,6 +163,16 @@ in one pass instead of relying on symlinks). The three agents (`job-scorer`, `re
 `tailor-application`) still require the actual Claude Code plugin, since agent dispatch (running an
 isolated subagent, not just following written instructions) isn't part of the portable skills
 format.
+
+### Agents on Codex
+
+The three agents (`job-scorer`, `resume-reviewer`, `tailor-application`) are ported to
+[Codex](https://developers.openai.com/codex) at `.codex/agents/*.toml` — Codex's native
+project-scoped custom-agent format, discovered automatically with no extra install step. Skills
+don't need a separate port for Codex either, `npx skills add jpatrickb/jobtracker` above already
+covers them. See [CODEX.md](CODEX.md) for the full picture, including the `codex exec`-per-invocation
+pattern that's currently the reliable way to bulk-dispatch these agents (native subagent spawning has
+open upstream reliability issues as of this writing).
 
 ## License
 
