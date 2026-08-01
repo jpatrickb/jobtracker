@@ -139,6 +139,14 @@ agent-agnostic convention several tools are converging on — rather than someth
 Claude-specific. `CLAUDE.md` is just a symlink to it, so Claude Code (which specifically looks for
 that filename) reads the exact same content with zero duplication.
 
+### Supported platforms
+
+Beyond Claude Code, agent dispatch (the 3 agents in `agents/` — run independently, safe to fire off
+several at once, one instance per posting) has been ported to:
+
+- **[Pi](https://pi.dev)** — see `pi/README.md` for install and usage. Skills need no separate port;
+  `npx skills add` (below) already covers them on Pi.
+
 ### Skills on other agents
 
 The three skills in `skills/` (`resume-update`, `resume-onboarding`, `submit-application`) are
