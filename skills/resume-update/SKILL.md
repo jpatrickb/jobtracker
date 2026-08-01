@@ -140,11 +140,12 @@ The resume should stay ATS-friendly: single column, standard section headings, a
 2. Make the edit in `resume/resume.typ`.
 3. Verify every new claim against a source; flag anything unverified for the user rather than asserting it.
 4. Build with `typst compile` and visually check the PDF: clean, two pages, page breaks and formatting intact.
-5. **Mandatory independent review, every time, no exceptions:** dispatch a fresh subagent (Agent tool,
-   `subagent_type: resume-reviewer`) on the edited `resume.typ`. Do not review your own edit in place of
-   this, the whole point is a second pass from an agent that didn't write the change. Fix every hard
-   finding (accuracy, weight, continuity gates) it raises and rebuild before calling the edit done; style
-   findings are a judgment call, but say what was left open if anything. See `tailor-application`'s step
-   7b for the fuller version of this rule and why it exists.
+5. **Mandatory independent review, every time, no exceptions:** dispatch `resume-reviewer` as an
+   independent review pass on the edited `resume.typ`, using however your environment supports invoking
+   another agent/skill. Do not review your own edit in place of this, the whole point is a second pass
+   from an agent that didn't write the change. Fix every hard finding (accuracy, weight, continuity
+   gates) it raises and rebuild before calling the edit done; style findings are a judgment call, but say
+   what was left open if anything. See `tailor-application`'s step 7b for the fuller version of this rule
+   and why it exists.
 6. Commit with a clear message describing what changed and why.
 7. For a specific application, tailor keywords from the job description (true ones only).

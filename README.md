@@ -132,6 +132,25 @@ agent-agnostic convention several tools are converging on — rather than someth
 Claude-specific. `CLAUDE.md` is just a symlink to it, so Claude Code (which specifically looks for
 that filename) reads the exact same content with zero duplication.
 
+### Skills on other agents
+
+The three skills in `skills/` (`resume-update`, `resume-onboarding`, `submit-application`) are
+plain [Agent Skills](https://agentskills.io) — a `SKILL.md` with YAML frontmatter plus Markdown
+instructions, no Claude-specific mechanism required to follow them. You can install them into any
+skills-compatible agent with the community [`vercel-labs/skills`](https://github.com/vercel-labs/skills)
+CLI, without waiting on a native plugin port:
+
+```bash
+npx skills add jpatrickb/jobtracker
+```
+
+This drops the three `SKILL.md` files into whichever agent(s) it detects (or pass `-a <agent>` to
+target one directly, `--copy` to write real copies to every requested agent's own skills directory
+in one pass instead of relying on symlinks). The three agents (`job-scorer`, `resume-reviewer`,
+`tailor-application`) still require the actual Claude Code plugin, since agent dispatch (running an
+isolated subagent, not just following written instructions) isn't part of the portable skills
+format.
+
 ## License
 
 MIT
