@@ -1,0 +1,10 @@
+{
+	"name": "jobtracker",
+	"private": true,
+	"version": "0.1.0",
+	"description": "Pi package manifest for jobtracker's subagent-dispatch extension. The jobtracker CLI itself is a separate Python package published via pyproject.toml -- this file exists solely so `pi install git:github.com/jpatrickb/jobtracker` can find the Pi extension below.",
+	"keywords": ["pi-package"],
+	"pi": {
+		"extensions": ["./pi/extensions/subagent"]
+	}
+}
