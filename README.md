@@ -158,6 +158,33 @@ in one pass instead of relying on symlinks). The three agents (`job-scorer`, `re
 isolated subagent, not just following written instructions) isn't part of the portable skills
 format.
 
+## Supported platforms
+
+Beyond Claude Code (the primary target, described throughout the rest of this README), the plugin
+components have also been ported to:
+
+- **Cursor** — the 3 agents (`job-scorer`, `resume-reviewer`, `tailor-application`) are ported as
+  [Cursor Subagents](https://cursor.com/docs/agent/subagents) in `cursor-agents/`, distributed via a
+  Cursor [plugin](https://cursor.com/docs/plugins) manifest at `.cursor-plugin/` that mirrors the
+  Claude Code plugin above. Skills need no separate port — `npx skills add jpatrickb/jobtracker` (see
+  "Skills on other agents" above) already covers all 3 skills on Cursor. See below for install
+  instructions.
+
+### Installing the Cursor plugin
+
+Cursor plugins install from chat, not a CLI command (no such command exists yet, per Cursor's own
+docs, which is also why `jobtracker setup` can't wire this up automatically the way it does for
+Claude Code):
+
+```
+/add-plugin jpatrickb/jobtracker
+```
+
+This installs the 3 ported agents from `cursor-agents/`, per the `.cursor-plugin/plugin.json`
+manifest. Cursor subagents have no per-tool allowlist (unlike Claude Code's `tools:` frontmatter) —
+the only scoping lever is `readonly: true`/`false`, chosen per agent and explained in a comment in
+each file's own frontmatter.
+
 ## License
 
 MIT
