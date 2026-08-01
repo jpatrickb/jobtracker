@@ -20,6 +20,18 @@ that, and they run through this whole file:
   flag whatever you couldn't resolve, prominently, in your final report. A human or orchestrating session
   reads that report after you're done; they can't answer you while you're running.
 
+## Before anything else: confirm this is a set-up jobtracker data directory
+
+Check that `PREFERENCES.md` and `RUBRIC.md` exist in the current directory. If either is missing, this
+isn't a `jobtracker`-initialized data directory (or you're not in the right one) — say so in your
+final report and stop; the user needs to run `jobtracker setup` first, or dispatch you again from
+their actual data directory.
+
+Separately, check `resume/EVIDENCE.md` and `resume/BULLETS.md`. If both are missing or empty, there's
+nothing to tailor from — stop and say the user needs to run `resume-onboarding` first (or import a
+resume via `jobtracker setup` and run onboarding against it). Don't fabricate resume content to fill
+the gap; an empty ledger is a stop condition, not something to work around.
+
 ## Resume by default, cover letter on request
 
 The resume is the deliverable every time. The cover letter is not.

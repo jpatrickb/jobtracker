@@ -8,6 +8,13 @@ description: Update and maintain the user's resume (resume/resume.typ). Use when
 Manage changes to the user's resume so it stays accurate, sounds like them, and survives ATS parsing.
 The resume is a Typst document at `resume/resume.typ`, built with `typst compile`.
 
+## Before anything else: confirm this is a set-up jobtracker data directory
+
+Check that `resume/EVIDENCE.md` exists. If it doesn't, there's no verified accomplishment ledger to
+check claims against yet — tell the user to run `resume-onboarding` first (or confirm they're in the
+right data directory; a missing `resume/` folder entirely means `jobtracker setup` hasn't been run at
+all). Don't edit `resume.typ` against an unverified or absent ledger.
+
 ## The non-negotiable rule: accuracy
 
 A resume can have false claims slip in from inference rather than verification, and once that happens

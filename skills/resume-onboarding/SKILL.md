@@ -12,6 +12,13 @@ scoring stack, all have a reasonable generic default the user edits from. `EVIDE
 anything, because the whole point of the ledger is that every line traces back to something the user
 actually did. Someone has to ask, and this skill is that interview.
 
+## Before anything else: confirm this is a set-up jobtracker data directory
+
+Check that `resume/` exists (or, more precisely, that `PREFERENCES.md` and `RUBRIC.md` exist in the
+current directory — the same marker used elsewhere in this toolkit). If they don't, this isn't a
+`jobtracker`-initialized data directory (or you're not in the right one) — tell the user to run
+`jobtracker setup` first, then stop there.
+
 ## Two ways in
 
 1. **Explicit.** The user asks directly ("build my evidence ledger," "let's do the resume interview,"

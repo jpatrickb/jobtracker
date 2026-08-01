@@ -12,6 +12,12 @@ Actual submission happens through each company's own portal, by hand. This skill
 automate that (portals vary, and some ask one-off supplemental questions). What it does is make sure the
 application is actually ready, then record that it went out.
 
+## Before anything else: confirm this is a set-up jobtracker data directory
+
+Check that `PREFERENCES.md` and an `applications/` directory exist in the current directory. If not,
+this isn't a `jobtracker`-initialized data directory (or you're not in the right one) — tell the user
+to run `jobtracker setup` first, then stop there.
+
 ## Workflow
 
 1. **Identify the folder.** `applications/<company>-<role-slug>/`. Ask if not given.
