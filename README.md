@@ -22,6 +22,13 @@ pip install jobtracker
 # or: pipx install jobtracker
 ```
 
+Or, as a convenience wrapper around the same install (picks `uv` if it's on your PATH, otherwise
+`pip`, installing `uv` first if you have neither), then launches the setup wizard for you:
+
+```bash
+curl -fsSL https://jpatrickb.github.io/jobtracker/install.sh | bash
+```
+
 This gives you two equivalent commands, `jobtracker` and `jta`. Examples below use `jobtracker`,
 but `jta` works everywhere it does.
 
