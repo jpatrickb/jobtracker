@@ -1,0 +1,13 @@
+{
+  "name": "jobtracker-marketplace",
+  "description": "Agentic job-search pipeline: score postings, tailor resumes, and track applications.",
+  "owner": {
+    "name": "Patrick Beal"
+  },
+  "plugins": [
+    {
+      "name": "jobtracker",
+      "source": "./"
+    }
+  ]
+}

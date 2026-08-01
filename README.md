@@ -131,28 +131,14 @@ the setup wizard short — edit these directly if you want something different:
 - **Scoring agent's model** — set via `model:` in `job-scorer`'s frontmatter after installing the
   plugin.
 
-## Supported platforms
-
-- **Codex** — the 3 agents are ported to Codex's native custom-agent format at
-  `.codex/agents/*.toml`; skills are already covered by `npx skills add jpatrickb/jobtracker` (see
-  [CODEX.md](CODEX.md) for setup and the bulk-dispatch pattern).
-
 ## Other coding agents
 
-`jobtracker` is built for Claude Code today. Support for other coding agents (Codex, Cursor, and
-others) is planned, which is why the data directory's instructions file is `AGENTS.md` — an
-agent-agnostic convention several tools are converging on — rather than something
-Claude-specific. `CLAUDE.md` is just a symlink to it, so Claude Code (which specifically looks for
-that filename) reads the exact same content with zero duplication.
-
-### Supported platforms
-
-Native ports of the 3 dispatchable agents (`job-scorer`, `resume-reviewer`, `tailor-application`),
-beyond the Claude Code plugin:
-
-- **Kilo Code** — ported to Kilo's native subagent format at `.kilo/agents/`, auto-discovered with
-  no install step. Skills are already covered on Kilo via `npx skills add jpatrickb/jobtracker` (see
-  below) — they aren't re-ported here.
+`jobtracker` was built for Claude Code first, and the plugin components (agents and skills) have
+since been ported to several other coding agents too — see "Supported platforms" below. This is
+also why the data directory's instructions file is `AGENTS.md` — an agent-agnostic convention
+several tools are converging on — rather than something Claude-specific. `CLAUDE.md` is just a
+symlink to it, so Claude Code (which specifically looks for that filename) reads the exact same
+content with zero duplication.
 
 ### Skills on other agents
 
@@ -173,15 +159,33 @@ in one pass instead of relying on symlinks). The three agents (`job-scorer`, `re
 isolated subagent, not just following written instructions) isn't part of the portable skills
 format.
 
-### Agents on Codex
+### Supported platforms
 
-The three agents (`job-scorer`, `resume-reviewer`, `tailor-application`) are ported to
-[Codex](https://developers.openai.com/codex) at `.codex/agents/*.toml` — Codex's native
-project-scoped custom-agent format, discovered automatically with no extra install step. Skills
-don't need a separate port for Codex either, `npx skills add jpatrickb/jobtracker` above already
-covers them. See [CODEX.md](CODEX.md) for the full picture, including the `codex exec`-per-invocation
-pattern that's currently the reliable way to bulk-dispatch these agents (native subagent spawning has
-open upstream reliability issues as of this writing).
+Beyond Claude Code (the primary target, described throughout the rest of this README), the 3
+dispatchable agents (`job-scorer`, `resume-reviewer`, `tailor-application`) have also been ported
+to:
+
+- **Codex** — ported to Codex's native project-scoped custom-agent format at
+  `.codex/agents/*.toml`, discovered automatically with no extra install step. See
+  [CODEX.md](CODEX.md) for the full picture, including the `codex exec`-per-invocation pattern
+  that's currently the reliable way to bulk-dispatch these agents (native subagent spawning has
+  open upstream reliability issues as of this writing).
+- **Kilo Code** — ported to Kilo's native subagent format at `.kilo/agents/`, auto-discovered with
+  no install step.
+- **Cursor** — ported as [Cursor Subagents](https://cursor.com/docs/agent/subagents) in
+  `cursor-agents/`, distributed via a Cursor [plugin](https://cursor.com/docs/plugins) manifest at
+  `.cursor-plugin/` that mirrors the Claude Code plugin above. Cursor plugins install from chat,
+  not a CLI command (no such command exists yet, per Cursor's own docs, which is also why
+  `jobtracker setup` can't wire this up automatically the way it does for Claude Code):
+  ```
+  /add-plugin jpatrickb/jobtracker
+  ```
+  Cursor subagents have no per-tool allowlist (unlike Claude Code's `tools:` frontmatter) — the
+  only scoping lever is `readonly: true`/`false`, chosen per agent and explained in a comment in
+  each file's own frontmatter.
+
+Skills need no separate port on any of these platforms — `npx skills add jpatrickb/jobtracker`
+("Skills on other agents" above) already covers all 3 skills everywhere it targets.
 
 ## License
 
