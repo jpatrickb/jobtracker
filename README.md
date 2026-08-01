@@ -139,6 +139,15 @@ agent-agnostic convention several tools are converging on — rather than someth
 Claude-specific. `CLAUDE.md` is just a symlink to it, so Claude Code (which specifically looks for
 that filename) reads the exact same content with zero duplication.
 
+### Supported platforms
+
+Native ports of the 3 dispatchable agents (`job-scorer`, `resume-reviewer`, `tailor-application`),
+beyond the Claude Code plugin:
+
+- **Kilo Code** — ported to Kilo's native subagent format at `.kilo/agents/`, auto-discovered with
+  no install step. Skills are already covered on Kilo via `npx skills add jpatrickb/jobtracker` (see
+  below) — they aren't re-ported here.
+
 ### Skills on other agents
 
 The three skills in `skills/` (`resume-update`, `resume-onboarding`, `submit-application`) are
