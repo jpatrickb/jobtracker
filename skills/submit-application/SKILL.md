@@ -41,10 +41,10 @@ to run `jobtracker setup` first, then stop there.
      problems from a second, independent read: a writer reviewing its own draft shares its blind spots,
      and an application that skips this step can go out with an unverified claim or an unexplained
      employment gap nobody caught. If it's still outstanding, run it now yourself before continuing
-     (Agent tool, `subagent_type: resume-reviewer`, one call per file that exists) rather than asking the
-     user whether to skip it. Fix every hard finding (accuracy/weight/continuity) it raises before
-     treating the checklist as passed. Never take "it looks fine" from the user as a substitute for the
-     review actually running.
+     (dispatch `resume-reviewer` as an independent review pass, using however your environment supports
+     invoking another agent/skill, one call per file that exists) rather than asking the user whether to
+     skip it. Fix every hard finding (accuracy/weight/continuity) it raises before treating the checklist
+     as passed. Never take "it looks fine" from the user as a substitute for the review actually running.
    - Rebuild both PDFs if either `.typ` file changed since last build, and confirm they render cleanly.
    - **Run `jobtracker doctor`** and resolve anything it flags for this record before moving on: a missing
      listing file, a `set-folder` link that no longer resolves to a real directory, or facts drift
