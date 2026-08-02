@@ -63,9 +63,10 @@ JOBTRACKER_BIN=.venv/bin/jobtracker bash smoke_test.sh mytest
 claude plugin validate .
 ```
 
-For a full clean-room test of the actual install experience (not just an editable install), see the
-sandboxing approach in the repo's own development notes — a container with nothing pre-installed,
-`pip install`/`uv tool install` run for real inside it.
+For a full clean-room test of the actual install experience (not just an editable install), spin up
+a bare Linux container (e.g. `docker run -it python:3.13-slim bash`) with nothing pre-installed and
+run the install steps straight from README's "Quick Install"/"Manual Setup" sections — that's the
+same thing a real user would do, so it's the right test.
 
 ## What's not built yet
 
