@@ -1,192 +1,96 @@
 # jobtracker
 
-A job-search pipeline that runs on Claude Code: AI agents score postings against *your* own
-criteria, tailor a resume and cover letter for each one, and a CLI tracks every application from
-first score to final outcome.
+**Score job postings, tailor resumes, and track applications with AI agents.** A Claude Code
+plugin (agents + skills) paired with a local CLI (`jobtracker`, or `jta`). Your job-search data —
+scores, applications, resume content, preferences — lives in its own directory you control, never
+inside this package.
 
-It's two things working together:
-
-- **A Claude Code plugin** — agents and skills that do the scoring, tailoring, and review.
-- **A CLI (`jobtracker`, or its short alias `jta`)** — a fast, local, JSON-backed record of every
-  job you've looked at.
-
-Your own job-search data (scores, applications, resume content, your preferences) never lives
-inside this package. It lives in a separate directory you control, ideally your own private git
-repo.
-
-## Install
-
-```bash
-pip install jobtracker
-# or: uv tool install jobtracker
-# or: pipx install jobtracker
-```
-
-Or, as a convenience wrapper around the same install (picks `uv` if it's on your PATH, otherwise
-`pip`, installing `uv` first if you have neither), then launches the setup wizard for you:
+## Quick Install
 
 ```bash
 curl -fsSL https://jpatrickb.github.io/jobtracker/install.sh | bash
 ```
 
-This gives you two equivalent commands, `jobtracker` and `jta`. Examples below use `jobtracker`,
-but `jta` works everywhere it does.
+Installs via `uv` or `pip`, then launches the setup wizard: picks a data directory, walks through
+your hard gates and rubric, wires up the Claude Code plugin if it finds `claude` on PATH.
 
-Resume and cover-letter PDFs are built with [Typst](https://typst.app/) rather than LaTeX — a
-single ~15MB binary instead of a multi-GB TeX distribution:
-
-```bash
-brew install typst   # or see https://github.com/typst/typst#installation
-```
-
-If you use Claude Code, the setup wizard (below) offers to install the Claude Code plugin for you
-automatically. To do it yourself:
-
-```
-/plugin marketplace add jpatrickb/jobtracker
-/plugin install jobtracker@jobtracker-marketplace
-```
-
-## Quickstart
+## Manual Setup
 
 ```bash
-pip install jobtracker
-jobtracker
+pip install jobtracker   # or: uv tool install jobtracker / pipx install jobtracker
+jobtracker setup         # or: jobtracker init [path] for a non-interactive equivalent
 ```
 
-That's the whole flow. Running `jobtracker` with no data directory configured yet launches an
-interactive setup wizard (you can also run it explicitly with `jobtracker setup`). It:
+| | |
+|---|---|
+| PDF builds | [Typst](https://typst.app/) — `brew install typst` |
+| Claude Code plugin | `/plugin marketplace add jpatrickb/jobtracker` then `/plugin install jobtracker@jobtracker-marketplace` |
+| Skills on other agents | `npx skills add jpatrickb/jobtracker` — installs all 3 skills via [Agent Skills](https://agentskills.io) |
 
-- picks or creates a data directory — suggests `~/JobTracker` by default, no manual `mkdir`/`cd`
-  needed — and remembers it globally, so `jobtracker` works from anywhere afterward.
-- walks through your hard gates (comp floor, location/remote requirement, anything else that
-  should auto-reject a posting) and confirms rubric defaults.
-- offers to import an existing resume or other proof-of-work document as a starting point — it's
-  staged for later use, not auto-parsed.
-- offers to wire up the Claude Code plugin automatically, if it finds the `claude` CLI on PATH.
+## What's Inside
 
-Under the hood, the wizard is a thin layer over `jobtracker init [path]`, a lower-level,
-non-interactive command that still exists for anyone who wants manual control — CI, scripting,
-power users who'd rather skip the prompts.
-
-## What's inside
-
-**Agents** — dispatch these directly, and run several at once; each runs in its own isolated
-context, so they're safe to fire off in bulk (one instance per posting).
+**Agents** — dispatch directly, run several in parallel, one instance per posting.
 
 | Agent | What it does |
 |---|---|
-| `job-scorer` | Scores a posting against your rubric and hard gates. Logs every job it scores to the tracker, pass or reject, with the raw listing text. |
-| `tailor-application` | Builds a tailored resume (and a cover letter, only if the employer asks for one) for a specific posting, drawing from your own verified accomplishment ledger. Ends with an explicit **NEEDS REVIEW** flag — dispatching `resume-reviewer` against its output is a required manual follow-up, not automatic, now that tailoring runs in its own isolated context. |
-| `resume-reviewer` | An independent second pass on any resume or cover letter draft — accuracy, quantification, repetition, ATS fit, length, tone, formatting. |
+| `job-scorer` | Scores a posting against your rubric and hard gates, logs it to the tracker. |
+| `tailor-application` | Builds a tailored resume + cover letter for one posting. Ends with **NEEDS REVIEW** — dispatch `resume-reviewer` next. |
+| `resume-reviewer` | Independent second pass on any resume or cover letter draft. |
 
-**Skills** — conversational, run inline in your main session; not meant for bulk dispatch.
+**Skills** — conversational, run inline in your session, not for bulk dispatch.
 
 | Skill | What it does |
 |---|---|
-| `resume-update` | General master-resume maintenance, not tied to one posting. |
-| `resume-onboarding` | A one-time interview that builds your verified accomplishment ledger — `EVIDENCE.md` and `BULLETS.md` — from scratch, or from an imported resume. |
-| `submit-application` | Pre-submit checklist (consistency check, no leftover TODOs, review actually happened), then the human-confirmation gate — the tracker only ever records a job as `Applied` once you confirm you actually submitted it. Deliberately not a bulk operation: real submission happens one job at a time in a browser and needs a human to confirm it. |
+| `resume-update` | General master-resume maintenance. |
+| `resume-onboarding` | One-time interview that builds your evidence ledger (`EVIDENCE.md`, `BULLETS.md`). |
+| `submit-application` | Pre-submit checklist, then a human-confirmation gate before marking a job `Applied`. |
 
-## The non-negotiable rule
+## The Rule
 
-No claim, number, or rewrite goes on a resume or cover letter unless it's traceable to a verified
-("shipped") item in your own evidence ledger, an actively measured source, or an explicitly
-labeled, sourced estimate you've signed off on yourself. Every agent and skill in this plugin
-defers to that rule.
+No claim, number, or rewrite goes on a resume or cover letter unless it traces to a verified item
+in your evidence ledger, a measured value, or a signed-off estimate. Every agent and skill defers
+to this.
 
-## Your data directory, after setup
+## Data Directory
 
 ```
 ~/JobTracker/
-├── .jobtracker/             # machine state — the applications.json database, the write lock
-├── RUBRIC.md                # scoring dimensions and weights — yours to edit
-├── PREFERENCES.md           # hard gates + qualitative preferences — yours to edit
-├── SCORING.md                # versions the scoring stack (rubric+preferences+anchors+corrections)
-├── corrections.md             # accumulated lessons from past scoring disagreements
-├── anchors/                     # real jobs you've scored yourself, used to calibrate the agent
-├── listings/                     # raw posting text + extracted facts, one file per job
-├── inbox/                          # postings dropped as a file, waiting to be scored
-├── applications/                     # one folder per tailored application
-├── resume/                            # EVIDENCE.md, BULLETS.md, and (optionally) PERSONAL.md, VOICE.md
-│   └── imports/                        # resumes/documents staged during setup, not auto-parsed
-├── AGENTS.md                            # the map for a coding-agent session started here
-└── CLAUDE.md -> AGENTS.md                # symlink, so Claude Code reads the same file
+├── .jobtracker/          # applications.json database
+├── RUBRIC.md              # scoring weights
+├── PREFERENCES.md         # hard gates + preferences
+├── SCORING.md              # scoring-stack version
+├── corrections.md           # scoring corrections log
+├── anchors/                  # calibration jobs
+├── listings/                  # posting text + extracted facts
+├── inbox/                      # postings waiting to be scored
+├── applications/                # one folder per tailored application
+├── resume/                       # EVIDENCE.md, BULLETS.md, VOICE.md (optional)
+└── AGENTS.md, CLAUDE.md            # agent instructions (CLAUDE.md is a symlink)
 ```
 
-`VOICE.md` (a short description of how you write, so drafts sound like you) is optional — every
-agent and skill checks for it and falls back to a general professional tone if it's absent.
+## Customizing
 
-## Customizing beyond the wizard
+| Default | Where |
+|---|---|
+| Resume length (2 pages) | `resume-reviewer`'s instructions |
+| Cover-letter policy (only when asked) | `tailor-application`'s instructions |
+| Status lifecycle | a constant in the CLI source |
+| Scoring model | `model:` in `job-scorer`'s frontmatter |
 
-A few defaults are deliberately just documented conventions rather than config options, to keep
-the setup wizard short — edit these directly if you want something different:
+## Supported Platforms
 
-- **Resume length target** (default: 2 pages) — stated in the reviewer's instructions.
-- **Cover-letter policy** (default: only written when the employer asks for one, or you do) —
-  stated in `tailor-application`'s instructions.
-- **Application status lifecycle** (`Scored → Tailored → Applied → Screening → Interviewing →
-  Offer / Rejected / Withdrawn / Skipped`) — a constant in the CLI's source. If your search has a
-  meaningfully different shape, edit it there directly.
-- **Scoring agent's model** — set via `model:` in `job-scorer`'s frontmatter after installing the
-  plugin.
+`AGENTS.md` (not `CLAUDE.md`) is the data directory's instructions file — an agent-agnostic
+convention several tools converge on.
 
-## Other coding agents
+| Platform | Agents | Install |
+|---|---|---|
+| Claude Code | `agents/` | see Manual Setup above |
+| [Codex](CODEX.md) | `.codex/agents/` | auto-discovered |
+| Kilo Code | `.kilo/agents/` | auto-discovered |
+| Cursor | `cursor-agents/` | `/add-plugin jpatrickb/jobtracker` |
+| [Pi](pi/README.md) | `pi/agents/` | see linked docs |
 
-`jobtracker` was built for Claude Code first, and the plugin components (agents and skills) have
-since been ported to several other coding agents too — see "Supported platforms" below. This is
-also why the data directory's instructions file is `AGENTS.md` — an agent-agnostic convention
-several tools are converging on — rather than something Claude-specific. `CLAUDE.md` is just a
-symlink to it, so Claude Code (which specifically looks for that filename) reads the exact same
-content with zero duplication.
-
-### Skills on other agents
-
-The three skills in `skills/` (`resume-update`, `resume-onboarding`, `submit-application`) are
-plain [Agent Skills](https://agentskills.io) — a `SKILL.md` with YAML frontmatter plus Markdown
-instructions, no Claude-specific mechanism required to follow them. You can install them into any
-skills-compatible agent with the community [`vercel-labs/skills`](https://github.com/vercel-labs/skills)
-CLI, without waiting on a native plugin port:
-
-```bash
-npx skills add jpatrickb/jobtracker
-```
-
-This drops the three `SKILL.md` files into whichever agent(s) it detects (or pass `-a <agent>` to
-target one directly, `--copy` to write real copies to every requested agent's own skills directory
-in one pass instead of relying on symlinks). The three agents (`job-scorer`, `resume-reviewer`,
-`tailor-application`) still require the actual Claude Code plugin, since agent dispatch (running an
-isolated subagent, not just following written instructions) isn't part of the portable skills
-format.
-
-### Supported platforms
-
-Beyond Claude Code (the primary target, described throughout the rest of this README), the 3
-dispatchable agents (`job-scorer`, `resume-reviewer`, `tailor-application`) have also been ported
-to:
-
-- **Codex** — ported to Codex's native project-scoped custom-agent format at
-  `.codex/agents/*.toml`, discovered automatically with no extra install step. See
-  [CODEX.md](CODEX.md) for the full picture, including the `codex exec`-per-invocation pattern
-  that's currently the reliable way to bulk-dispatch these agents (native subagent spawning has
-  open upstream reliability issues as of this writing).
-- **Kilo Code** — ported to Kilo's native subagent format at `.kilo/agents/`, auto-discovered with
-  no install step.
-- **Cursor** — ported as [Cursor Subagents](https://cursor.com/docs/agent/subagents) in
-  `cursor-agents/`, distributed via a Cursor [plugin](https://cursor.com/docs/plugins) manifest at
-  `.cursor-plugin/` that mirrors the Claude Code plugin above. Cursor plugins install from chat,
-  not a CLI command (no such command exists yet, per Cursor's own docs, which is also why
-  `jobtracker setup` can't wire this up automatically the way it does for Claude Code):
-  ```
-  /add-plugin jpatrickb/jobtracker
-  ```
-  Cursor subagents have no per-tool allowlist (unlike Claude Code's `tools:` frontmatter) — the
-  only scoping lever is `readonly: true`/`false`, chosen per agent and explained in a comment in
-  each file's own frontmatter.
-- **[Pi](https://pi.dev)** — see `pi/README.md` for install and usage.
-
-Skills need no separate port on any of these platforms — `npx skills add jpatrickb/jobtracker`
-("Skills on other agents" above) already covers all 3 skills everywhere it targets.
+Skills need no per-platform port — `npx skills add jpatrickb/jobtracker` covers all of the above.
 
 ## License
 
