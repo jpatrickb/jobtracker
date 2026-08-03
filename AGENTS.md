@@ -34,7 +34,7 @@ templates bundled at `src/jobtracker/templates/`.
 | `resume-templates/` | Typst resume/cover-letter templates `tailor-application` fills in per application. |
 | `.claude-plugin/` | `plugin.json` + `marketplace.json` (shared-root pattern — this repo is both the plugin and its own marketplace). |
 | `smoke_test.sh` | Before/after behavioral snapshot for the CLI — there's no real test suite yet, this is what CI runs. |
-| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each. `wizard.py`'s `_step_agent_install` shells out to it, falling back to a manual per-platform table if Node/npx isn't available. See `installer/PUBLISHING.md`. |
+| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each. `wizard.py`'s `_step_agent_install` shells out to it, falling back to a manual per-platform table if Node/npx isn't available. |
 
 ## Conventions worth knowing before editing
 
@@ -81,9 +81,9 @@ Installing agents across all of those platforms is now unified behind `npx jobtr
 (`installer/`) — pick which agent(s) you use, it installs the right files for each and offers
 skills too; `jobtracker setup` runs it automatically when Node is on PATH, falling back to printing
 manual per-platform commands otherwise.
-The Python package still isn't published on PyPI (see `PUBLISHING.md` for the one-time linking step
-still outstanding) — note this means `.claude-plugin/plugin.json`'s version and the `pyproject.toml`
-version haven't been bumped past `0.1.0` yet either, worth doing as part of that first publish.
-`jobtracker-agents` has the same kind of one-time step pending on the npm side (see
-`installer/PUBLISHING.md`) before `npx jobtracker-agents`/`_step_agent_install` resolve to a real
-published package rather than falling back to the manual table.
+Both packages are published: `jobtracker` on PyPI (tag `v<version>` + a GitHub Release triggers
+`.github/workflows/publish.yml`) and `jobtracker-agents` on npm (bump `installer/package.json`'s
+version and merge to `main` — `.github/workflows/publish-installer.yml` takes it from there, no
+manual `npm publish` needed after the first one). Bump `.claude-plugin/plugin.json`, `pyproject.toml`,
+and `installer/package.json` together when a change should ship on all fronts at once; nothing
+enforces that they stay in lockstep, so don't assume one bump implies the others.
