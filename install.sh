@@ -28,8 +28,13 @@ log() {
   echo "==> $*"
 }
 
-# Ensure `uv`'s installer-managed location is on PATH for the rest of *this* script, even though
-# the installer already updates shell rc files for future sessions (those don't affect us here).
+# Ensure `uv`'s installer-managed location is on PATH for the rest of *this* script. Needed even
+# when uv was already installed by an earlier run of this exact script: `curl | bash` spawns a
+# non-interactive, non-login shell, which never sources .bashrc/.profile (only interactive/login
+# shells do) -- so the PATH line uv's installer wrote there never takes effect for a subsequent
+# `curl | bash` invocation, even in the same still-running container/shell session. Checking the
+# well-known install directories directly, instead of trusting PATH alone, is what makes a second
+# run correctly find an already-installed uv instead of silently reinstalling it every time.
 ensure_uv_on_path() {
   if command -v uv >/dev/null 2>&1; then
     return
@@ -61,6 +66,8 @@ pip_fallback() {
     return 1
   fi
 }
+
+ensure_uv_on_path
 
 if command -v uv >/dev/null 2>&1; then
   log "Found uv on PATH, installing jobtracker with it..."
