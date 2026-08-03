@@ -1,7 +1,7 @@
 {
   "name": "jobtracker",
   "description": "Agentic job-search pipeline: score postings against your own criteria, tailor a resume and cover letter for each one, and track every application from first score to final outcome.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Patrick Beal"
   },
