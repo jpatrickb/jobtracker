@@ -108,6 +108,19 @@ async function main() {
   p.intro("jobtracker-agents");
 
   if (!isJobtrackerDataDir(cwd)) {
+    if (flags.launch) {
+      // Continuing here would install files into the wrong place, then try to launch an agent
+      // into a directory preferences-onboarding's own guard clause immediately rejects (no
+      // PREFERENCES.md/RUBRIC.md) -- a confusing dead end, not a real "continue anyway" option.
+      p.cancel(
+        `${cwd} isn't a jobtracker data directory yet, so --launch has nothing to hand off to ` +
+          "(preferences-onboarding needs PREFERENCES.md/RUBRIC.md to already exist). Run " +
+          "`jobtracker setup` first, or cd into an existing data directory and try again.",
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     const message = `${cwd} doesn't look like a jobtracker data directory (no .jobtracker/ marker) -- project-scoped agent files would land here anyway.`;
     if (flags.yes) {
       p.log.warn(message);
