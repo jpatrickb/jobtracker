@@ -36,6 +36,10 @@ async function stepDataDirectory(): Promise<string> {
     if (!p.isCancel(reinit) && reinit) {
       const result = runScaffold(target, true);
       if (result.output) p.log.message(result.output);
+      if (!result.ok) {
+        p.cancel("`jobtracker init` failed -- is the jobtracker CLI installed and on PATH?");
+        process.exit(1);
+      }
       p.log.success(`Reinitialized ${target}.`);
     } else {
       p.log.info(`Using ${target} as-is.`);
@@ -43,6 +47,10 @@ async function stepDataDirectory(): Promise<string> {
   } else {
     const result = runScaffold(target, false);
     if (result.output) p.log.message(result.output);
+    if (!result.ok) {
+      p.cancel("`jobtracker init` failed -- is the jobtracker CLI installed and on PATH?");
+      process.exit(1);
+    }
     p.log.success(`Created a fresh jobtracker data directory at ${target}.`);
   }
 

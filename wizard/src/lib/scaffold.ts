@@ -18,6 +18,9 @@ export function runScaffold(target: string, force: boolean): ScaffoldResult {
   const args = ["init", target];
   if (force) args.push("--force");
   const result = spawnSync("jobtracker", args, { encoding: "utf8" });
-  const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
-  return { ok: result.status === 0, output };
+  // result.error is set when the process couldn't even be spawned (e.g. ENOENT -- `jobtracker`
+  // isn't on PATH), in which case stdout/stderr are empty and status is null, not a real exit
+  // code. Surface that explicitly rather than silently reporting an empty, unexplained failure.
+  const parts = [result.stdout, result.stderr, result.error?.message].filter(Boolean);
+  return { ok: result.status === 0 && !result.error, output: parts.join("\n").trim() };
 }
