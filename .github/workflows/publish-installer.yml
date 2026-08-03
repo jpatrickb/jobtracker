@@ -22,12 +22,15 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
       # Trusted Publishing (OIDC) needs npm >=11.5; actions/setup-node's bundled npm may be older.
+      # Pinned to the npm 11 line rather than `@latest`: npm 12 bumped its own engine requirement
+      # to Node >=22.22/24.15/26, which broke this step outright when it silently started
+      # resolving to 12.x here -- pinning avoids that recurring every time npm's floor moves again.
       - name: Update npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci
@@ -36,9 +39,9 @@ jobs:
         run: npm run build
 
       # Publishing is version-gated, not event-gated: a normal commit bumping package.json's
-      # version is the only "release" step (see installer/PUBLISHING.md) -- a docs-only or
-      # non-version-bumping change to installer/ merging to main must no-op here rather than
-      # attempt (and fail) a duplicate publish of the same version.
+      # version is the only "release" step -- a docs-only or non-version-bumping change to
+      # installer/ merging to main must no-op here rather than attempt (and fail) a duplicate
+      # publish of the same version.
       - name: Check whether the version changed
         id: version-check
         run: |
