@@ -1,0 +1,19 @@
+{
+  "name": "jobtracker-setup-wizard",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Prototype TypeScript rewrites of `jobtracker setup`, for UX comparison -- not published, not wired into the real install flow yet.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "jobtracker-agents": "file:../installer"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}
