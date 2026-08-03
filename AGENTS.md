@@ -34,6 +34,7 @@ templates bundled at `src/jobtracker/templates/`.
 | `resume-templates/` | Typst resume/cover-letter templates `tailor-application` fills in per application. |
 | `.claude-plugin/` | `plugin.json` + `marketplace.json` (shared-root pattern — this repo is both the plugin and its own marketplace). |
 | `smoke_test.sh` | Before/after behavioral snapshot for the CLI — there's no real test suite yet, this is what CI runs. |
+| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each. `wizard.py`'s `_step_agent_install` shells out to it, falling back to a manual per-platform table if Node/npx isn't available. See `installer/PUBLISHING.md`. |
 
 ## Conventions worth knowing before editing
 
@@ -76,6 +77,13 @@ agents (`job-scorer`, `resume-reviewer`, `tailor-application`) are ported to Cod
 Kilo Code (`.kilo/`), Cursor (`.cursor-plugin/`, `cursor-agents/`), and Pi (`pi/`) alongside the
 original Claude Code plugin — see README's "Supported platforms" section. The 3 skills are
 covered on all of those via `npx skills add jpatrickb/jobtracker` rather than a per-platform port.
-The package still isn't published on PyPI (see `PUBLISHING.md` for the one-time linking step still
-outstanding) — note this means `.claude-plugin/plugin.json`'s version and the `pyproject.toml`
+Installing agents across all of those platforms is now unified behind `npx jobtracker-agents`
+(`installer/`) — pick which agent(s) you use, it installs the right files for each and offers
+skills too; `jobtracker setup` runs it automatically when Node is on PATH, falling back to printing
+manual per-platform commands otherwise.
+The Python package still isn't published on PyPI (see `PUBLISHING.md` for the one-time linking step
+still outstanding) — note this means `.claude-plugin/plugin.json`'s version and the `pyproject.toml`
 version haven't been bumped past `0.1.0` yet either, worth doing as part of that first publish.
+`jobtracker-agents` has the same kind of one-time step pending on the npm side (see
+`installer/PUBLISHING.md`) before `npx jobtracker-agents`/`_step_agent_install` resolve to a real
+published package rather than falling back to the manual table.

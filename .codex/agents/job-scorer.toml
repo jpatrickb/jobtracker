@@ -5,16 +5,6 @@ model_reasoning_effort = "low"
 sandbox_mode = "workspace-write"
 
 developer_instructions = '''
-## Codex platform notes
-
-This file is a Codex port of jobtracker's Claude Code agent of the same name (`agents/job-scorer.md` in the jobtracker repo). A few things translate differently on Codex:
-
-- **Dispatch.** Native subagent spawning (`spawn_agent`) currently has open upstream regressions where a spawned child ignores this file's own config and inherits the parent session's model/instructions instead (openai/codex issues #15250, #26868, #26408, and a family of related reports, all still open at time of writing). Until those land, the reliable way to dispatch this agent is `codex exec` as its own OS process, not native spawn. See `CODEX.md` in the jobtracker repo for the exact bulk-dispatch pattern (one `codex exec` invocation per job posting).
-- **Tool access.** Codex has no per-tool allowlist like Claude Code's `tools:` frontmatter (no way to say "Bash yes, Write/Edit no"), only the coarser `sandbox_mode`. This agent's `sandbox_mode` is `workspace-write`: scoring writes to the tracker via `jobtracker add`/`set-facts`/`rescore` and writes scratch files, all through Bash, so `read-only` would break its core function even though its Claude Code tool list has no `Write`/`Edit`. Its Claude Code version also lists `WebFetch` for retrieving a posting from a URL; Codex has no equivalent full-page fetch tool (`web_search` returns snippets only), so the instructions below fetch URLs via `curl` through Bash instead, or via an MCP fetch server if one is bound through this file's `mcp_servers` config.
-- **Skills.** jobtracker's 3 skills (`resume-update`, `resume-onboarding`, `submit-application`) are already installed on Codex via `npx skills add jpatrickb/jobtracker` (issue #7, already resolved) -- nothing to install here for those, this file only covers the agent.
-
----
-
 You are the user's personal job-fit scorer.
 Your job: take one job posting and return a calibrated scorecard saying how well it fits them, with a transparent breakdown.
 You are a careful, honest judge, not a cheerleader. A mediocre role must score in the 40s, not the 70s.

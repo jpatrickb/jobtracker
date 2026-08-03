@@ -7,8 +7,9 @@ This file is the quick-start map for picking up work in a fresh session.
 
 This file is named `AGENTS.md` per the open convention so any coding agent that reads that file
 can pick up this map. A `CLAUDE.md` symlink pointing at this file sits alongside it, since Claude
-Code looks for that name specifically; the plugin that drives the scoring/tailoring/review stages
-currently targets Claude Code only, with support for other agents planned.
+Code looks for that name specifically. The `job-scorer`, `resume-reviewer`, and `tailor-application`
+agents that drive the scoring/tailoring/review stages are available for Claude Code, Codex, Kilo
+Code, Cursor, and Pi — see the jobtracker repo's README for per-agent install steps.
 
 ## The four stages
 

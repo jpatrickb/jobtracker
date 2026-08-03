@@ -1,9 +1,9 @@
 # jobtracker
 
-**Score job postings, tailor resumes, and track applications with AI agents.** A Claude Code
-plugin (agents + skills) paired with a local CLI (`jobtracker`, or `jta`). Your job-search data —
-scores, applications, resume content, preferences — lives in its own directory you control, never
-inside this package.
+**Score job postings, tailor resumes, and track applications with AI agents.** Agents and skills
+for the coding agent you already use, paired with a local CLI (`jobtracker`, or `jta`). Your
+job-search data — scores, applications, resume content, preferences — lives in its own directory
+you control, never inside this package.
 
 ## Quick Install
 
@@ -12,7 +12,34 @@ curl -fsSL https://jpatrickb.github.io/jobtracker/install.sh | bash
 ```
 
 Installs via `uv` or `pip`, then launches the setup wizard: picks a data directory, walks through
-your hard gates and rubric, wires up the Claude Code plugin if it finds `claude` on PATH.
+your hard gates and rubric, then offers to run `npx jobtracker-agents` — pick which coding agent(s)
+you use and it installs the right files for each, plus your skills, in one step. Not on Node? The
+wizard prints the equivalent manual commands instead — see Supported Platforms below.
+
+## Supported Platforms
+
+```bash
+npx jobtracker-agents
+```
+
+Lets you pick which agent(s) you use (Claude Code, Codex, Kilo Code, Cursor, Pi) and installs the
+right files for each, then offers to install skills too. This is what the setup wizard runs for you;
+run it yourself anytime to add another agent later, or if you skipped it during setup.
+
+| Platform | Agents | Manual install (if you'd rather not use `npx jobtracker-agents`) |
+|---|---|---|
+| Claude Code | `agents/` | `/plugin marketplace add jpatrickb/jobtracker` then `/plugin install jobtracker@jobtracker-marketplace` |
+| [Codex](CODEX.md) | `.codex/agents/` | auto-discovered |
+| Kilo Code | `.kilo/agents/` | auto-discovered |
+| Cursor | `cursor-agents/` | `/add-plugin jpatrickb/jobtracker` (run inside Cursor — this one can't be scripted, `jobtracker-agents` just prints it too) |
+| [Pi](pi/README.md) | `pi/agents/` | see linked docs |
+
+Skills need no per-platform port — `npx skills add jpatrickb/jobtracker` installs all 3
+(`resume-update`, `resume-onboarding`, `submit-application`) on any of the above via
+[Agent Skills](https://agentskills.io). `jobtracker-agents` offers to run this for you too.
+
+`AGENTS.md` (not `CLAUDE.md`) is the data directory's instructions file — an agent-agnostic
+convention several tools converge on.
 
 ## Manual Setup
 
@@ -24,8 +51,8 @@ jobtracker setup         # or: jobtracker init [path] for a non-interactive equi
 | | |
 |---|---|
 | PDF builds | [Typst](https://typst.app/) — `brew install typst` |
-| Claude Code plugin | `/plugin marketplace add jpatrickb/jobtracker` then `/plugin install jobtracker@jobtracker-marketplace` |
-| Skills on other agents | `npx skills add jpatrickb/jobtracker` — installs all 3 skills via [Agent Skills](https://agentskills.io) |
+
+Then run `npx jobtracker-agents` (or see Supported Platforms above for manual steps).
 
 ## What's Inside
 
@@ -72,25 +99,10 @@ to this.
 
 | Default | Where |
 |---|---|
-| Resume length (2 pages) | `resume-reviewer`'s instructions |
+| Resume length (1 page) | `resume-reviewer`'s instructions |
 | Cover-letter policy (only when asked) | `tailor-application`'s instructions |
 | Status lifecycle | a constant in the CLI source |
 | Scoring model | `model:` in `job-scorer`'s frontmatter |
-
-## Supported Platforms
-
-`AGENTS.md` (not `CLAUDE.md`) is the data directory's instructions file — an agent-agnostic
-convention several tools converge on.
-
-| Platform | Agents | Install |
-|---|---|---|
-| Claude Code | `agents/` | see Manual Setup above |
-| [Codex](CODEX.md) | `.codex/agents/` | auto-discovered |
-| Kilo Code | `.kilo/agents/` | auto-discovered |
-| Cursor | `cursor-agents/` | `/add-plugin jpatrickb/jobtracker` |
-| [Pi](pi/README.md) | `pi/agents/` | see linked docs |
-
-Skills need no per-platform port — `npx skills add jpatrickb/jobtracker` covers all of the above.
 
 ## License
 

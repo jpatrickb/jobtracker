@@ -77,7 +77,9 @@ def cmd_init(args):
     print(
         "\nNext steps:\n"
         "  - cd into this directory and run `git init` yourself if you want version control.\n"
-        "  - Install the Claude Code plugin if you haven't.\n"
+        "  - Install agents/skills for your coding agent if you haven't -- see the jobtracker "
+        "README's \"Supported Platforms\" table (Claude Code, Codex, Kilo Code, Cursor, Pi) and "
+        "`npx skills add jpatrickb/jobtracker` for skills.\n"
         "  - Run `jobtracker setup` to walk through customization "
         "(hard gates, rubric weights, whether to build your resume evidence ledger now or later)."
     )
