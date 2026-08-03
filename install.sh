@@ -8,8 +8,10 @@
 # real, documented install paths (see README) -- this is just a shortcut on top of them.
 #
 # NOTE: this always installs tip-of-main via whatever `jobtracker` build is on PyPI at the time
-# uv/pip resolve it -- there's no version pinning here. That's fine pre-first-PyPI-publish (there's
-# only ever one version to get), but revisit once releases start diverging.
+# uv/pip resolve it -- there's no version pinning here. Both uv and pip treat an already-installed
+# package as satisfied and do nothing by default, even when a newer version exists on PyPI, so
+# re-running this script would otherwise silently keep whatever was installed the first time --
+# `--reinstall`/`--upgrade` below force resolving against the current PyPI version every time.
 #
 # -e: fail fast on any unhandled error. Unlike smoke_test.sh (which deliberately omits -e because
 # some of its commands are expected to exit nonzero), every command in this script is expected to
@@ -40,11 +42,11 @@ ensure_uv_on_path() {
 
 if command -v uv >/dev/null 2>&1; then
   log "Found uv on PATH, installing jobtracker with it..."
-  uv tool install jobtracker
+  uv tool install --reinstall jobtracker
 elif command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1; then
   pip_bin="$(command -v pip || command -v pip3)"
   log "Found $pip_bin on PATH, installing jobtracker with it..."
-  "$pip_bin" install --user jobtracker
+  "$pip_bin" install --user --upgrade jobtracker
 else
   log "Neither uv nor pip found on PATH. Installing uv first..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -55,7 +57,7 @@ else
     exit 1
   fi
   log "Installing jobtracker with uv..."
-  uv tool install jobtracker
+  uv tool install --reinstall jobtracker
 fi
 
 log "jobtracker installed. Launching setup..."
