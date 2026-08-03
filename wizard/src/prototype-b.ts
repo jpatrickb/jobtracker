@@ -7,11 +7,12 @@ import * as p from "@clack/prompts";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { runAgentInstallStep } from "./lib/agent-step.js";
+import { isValidCompFloor, parseCompFloor } from "./lib/comp-floor.js";
 import { writeDefaultDataRoot } from "./lib/config.js";
 import type { HardGate } from "./lib/hard-gates.js";
 import { writeHardGates } from "./lib/hard-gates.js";
 import { resolveTarget } from "./lib/paths.js";
-import { readRubricDimensions } from "./lib/rubric.js";
+import { readRubricDimensions, renderRubricBars } from "./lib/rubric.js";
 import { importResumeFile, resolveImportSource } from "./lib/resume-import.js";
 import { isJobtrackerDataDir, runScaffold } from "./lib/scaffold.js";
 
@@ -27,7 +28,7 @@ async function stepDataDirectory(): Promise<string> {
 
   if (isJobtrackerDataDir(target)) {
     const reinit = await p.confirm({
-      message: `${target} already exists. Reinitialize it? (resets scaffolded files; your applications database is untouched either way)`,
+      message: `${target} already exists. Reset it back to a blank starting point? (your tracked applications are safe either way)`,
       initialValue: false,
     });
     if (!p.isCancel(reinit) && reinit) {
@@ -59,10 +60,10 @@ type GateKind = "comp" | "location" | "visa" | "clearance" | "other";
 async function stepHardGates(target: string): Promise<void> {
   const kinds = await p.multiselect({
     message:
-      "Hard gates -- postings that fail any of these get auto-rejected before scoring. Which do you have?",
+      "Let's set up your dealbreakers, so a bad-fit posting gets filtered out automatically. Which of these apply?",
     options: [
-      { value: "comp", label: "Compensation floor" },
-      { value: "location", label: "Location or remote-work requirement" },
+      { value: "comp", label: "A minimum pay requirement" },
+      { value: "location", label: "A location or remote-work requirement" },
       { value: "visa", label: "Visa sponsorship" },
       { value: "clearance", label: "Security clearance" },
       { value: "other", label: "Something else" },
@@ -75,34 +76,19 @@ async function stepHardGates(target: string): Promise<void> {
   const selected = new Set(kinds as GateKind[]);
 
   if (selected.has("comp")) {
-    const amountStr = await p.text({
-      message: "Minimum compensation (just the number, e.g. 150000 or 75)",
-      validate: (v) =>
-        Number.isFinite(Number(v)) && (v ?? "").trim() !== "" ? undefined : "Enter a number",
+    const compRaw = await p.text({
+      message: "What's the least you'd take? (e.g. $90k, 110k/yr, or 75/hr)",
+      validate: (v) => (isValidCompFloor(v ?? "") ? undefined : "e.g. $90k, 110k/yr, or 75/hr"),
     });
-    const basis = await p.select({
-      message: "Annual salary or hourly rate?",
-      options: [
-        { value: "annual", label: "annual" },
-        { value: "hourly", label: "hourly" },
-      ],
-      initialValue: "annual",
-    });
-    if (!p.isCancel(amountStr) && !p.isCancel(basis)) {
-      const amount = Number(amountStr).toLocaleString("en-US");
-      const condition =
-        basis === "annual"
-          ? `base salary disclosed AND < $${amount}`
-          : `hourly rate disclosed AND < $${amount}/hr`;
-      gates.push({ name: "Compensation floor", condition, rejectMessage: "Below comp floor" });
+    if (!p.isCancel(compRaw)) {
+      const gate = parseCompFloor(compRaw);
+      if (gate) gates.push(gate);
     }
   }
 
   if (selected.has("location")) {
     const description = await p.text({
-      message:
-        "Describe your location/remote requirement (e.g. 'must be fully remote, or onsite/hybrid " +
-        "within commuting distance of Austin, TX')",
+      message: "Where are you willing to work? (e.g. 'remote only', 'Austin or remote')",
     });
     if (!p.isCancel(description)) {
       gates.push({ name: "Location", condition: description, rejectMessage: "Location doesn't work" });
@@ -143,10 +129,10 @@ async function stepHardGates(target: string): Promise<void> {
 
   const wrote = await writeHardGates(target, gates);
   if (gates.length > 0 && wrote) {
-    p.log.success(`Wrote ${gates.length} hard gate(s) to PREFERENCES.md.`);
+    p.log.success(`Wrote ${gates.length} dealbreaker(s) to PREFERENCES.md.`);
   } else {
     p.log.info(
-      "No hard gates set -- left the illustrative placeholder examples in PREFERENCES.md, edit " +
+      "No dealbreakers set -- left the illustrative placeholder examples in PREFERENCES.md, edit " +
         "them there whenever you're ready.",
     );
   }
@@ -155,12 +141,13 @@ async function stepHardGates(target: string): Promise<void> {
 async function stepRubricWeights(target: string): Promise<boolean> {
   const dims = await readRubricDimensions(target);
   const summary =
-    dims.length > 0
-      ? dims.map((d) => `${d.name} -- ${d.weight}%`).join("\n")
-      : "(couldn't find dimension headings in RUBRIC.md to summarize)";
+    dims.length > 0 ? renderRubricBars(dims) : "(couldn't find dimension headings in RUBRIC.md to summarize)";
   p.note(summary, "Rubric weights");
 
-  const keep = await p.confirm({ message: "Keep these defaults for now?", initialValue: true });
+  const keep = await p.confirm({
+    message: "Does this weighting match what actually matters to you?",
+    initialValue: true,
+  });
   const kept = !p.isCancel(keep) && keep;
   if (!kept) {
     p.log.info("Edit RUBRIC.md directly whenever you're ready, or revisit it through job-scorer's feedback loop.");
@@ -172,7 +159,7 @@ async function stepResumeImport(target: string): Promise<string[]> {
   const imported: string[] = [];
   let pathStr = await p.text({
     message:
-      "Resume/LinkedIn export/work-history doc to import? Enter a path, or press Enter to skip",
+      "Got a resume or LinkedIn export handy? Drop the path here (or drag the file in) -- blank to skip",
     initialValue: "",
   });
   if (p.isCancel(pathStr)) return imported;
@@ -186,7 +173,7 @@ async function stepResumeImport(target: string): Promise<string[]> {
       imported.push(dest);
       p.log.success(`Imported -> ${dest}`);
     }
-    const next = await p.text({ message: "Another file? (blank to continue)", initialValue: "" });
+    const next = await p.text({ message: "Another one? (blank to continue)", initialValue: "" });
     if (p.isCancel(next)) break;
     pathStr = next;
   }
@@ -209,7 +196,7 @@ async function main() {
   p.note(
     [
       `Data directory: ${target}`,
-      `Hard gates: see PREFERENCES.md`,
+      `Dealbreakers: see PREFERENCES.md`,
       imported.length > 0 ? `Imported ${imported.length} file(s): ${imported.join(", ")}` : "Resume import: skipped",
       keptDefaultRubric ? "Rubric weights: kept at the scaffolded defaults." : "Rubric weights: customize in RUBRIC.md",
     ].join("\n"),

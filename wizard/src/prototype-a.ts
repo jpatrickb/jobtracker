@@ -7,11 +7,12 @@ import * as p from "@clack/prompts";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { runAgentInstallStep } from "./lib/agent-step.js";
+import { isValidCompFloor, parseCompFloor } from "./lib/comp-floor.js";
 import { writeDefaultDataRoot } from "./lib/config.js";
 import type { HardGate } from "./lib/hard-gates.js";
 import { writeHardGates } from "./lib/hard-gates.js";
 import { resolveTarget } from "./lib/paths.js";
-import { readRubricDimensions } from "./lib/rubric.js";
+import { readRubricDimensions, renderRubricBars } from "./lib/rubric.js";
 import { importResumeFile, resolveImportSource } from "./lib/resume-import.js";
 import { isJobtrackerDataDir, runScaffold } from "./lib/scaffold.js";
 
@@ -29,8 +30,7 @@ async function stepDataDirectory(): Promise<string> {
     p.log.info(`${target} is already a jobtracker data directory.`);
     const reinit = await p.confirm({
       message:
-        "Reinitialize it? (resets scaffolded files back to their templates; your " +
-        ".jobtracker/applications.json is untouched either way)",
+        "Reset it back to a blank starting point? (your tracked applications are safe either way)",
       initialValue: false,
     });
     if (!p.isCancel(reinit) && reinit) {
@@ -58,40 +58,25 @@ async function stepDataDirectory(): Promise<string> {
 }
 
 async function stepHardGates(target: string): Promise<void> {
-  p.log.step("Hard gates -- postings that fail any of these get auto-rejected before scoring.");
+  p.log.step(
+    "Let's set up your dealbreakers, so a bad-fit posting gets filtered out automatically " +
+      "instead of wasting your time.",
+  );
 
   const gates: HardGate[] = [];
 
-  const hasComp = await p.confirm({
-    message: "Do you have a minimum compensation requirement?",
-    initialValue: false,
+  const compRaw = await p.text({
+    message: "What's the least you'd take? (e.g. $90k, 110k/yr, or 75/hr -- blank if you're flexible)",
+    initialValue: "",
+    validate: (v) => (isValidCompFloor(v ?? "") ? undefined : "e.g. $90k, 110k/yr, or 75/hr"),
   });
-  if (!p.isCancel(hasComp) && hasComp) {
-    const amountStr = await p.text({
-      message: "What's the minimum? (just the number, e.g. 150000 or 75)",
-      validate: (v) =>
-        Number.isFinite(Number(v)) && (v ?? "").trim() !== "" ? undefined : "Enter a number",
-    });
-    const basis = await p.select({
-      message: "Is that an annual salary or an hourly rate?",
-      options: [
-        { value: "annual", label: "annual" },
-        { value: "hourly", label: "hourly" },
-      ],
-      initialValue: "annual",
-    });
-    if (!p.isCancel(amountStr) && !p.isCancel(basis)) {
-      const amount = Number(amountStr).toLocaleString("en-US");
-      const condition =
-        basis === "annual"
-          ? `base salary disclosed AND < $${amount}`
-          : `hourly rate disclosed AND < $${amount}/hr`;
-      gates.push({ name: "Compensation floor", condition, rejectMessage: "Below comp floor" });
-    }
+  if (!p.isCancel(compRaw)) {
+    const gate = parseCompFloor(compRaw);
+    if (gate) gates.push(gate);
   }
 
   const hasLocation = await p.confirm({
-    message: "Do you have a location or remote-work requirement?",
+    message: "Is there a location or remote-work setup you need?",
     initialValue: false,
   });
   if (!p.isCancel(hasLocation) && hasLocation) {
@@ -108,9 +93,7 @@ async function stepHardGates(target: string): Promise<void> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const hasMore = await p.confirm({
-      message:
-        "Any other hard requirement that should auto-reject a posting (visa sponsorship, " +
-        "security clearance, something else)?",
+      message: "Anything else that should be an automatic no?",
       initialValue: false,
     });
     if (p.isCancel(hasMore) || !hasMore) break;
@@ -123,10 +106,10 @@ async function stepHardGates(target: string): Promise<void> {
 
   const wrote = await writeHardGates(target, gates);
   if (gates.length > 0 && wrote) {
-    p.log.success(`Wrote ${gates.length} hard gate(s) to PREFERENCES.md.`);
+    p.log.success(`Wrote ${gates.length} dealbreaker(s) to PREFERENCES.md.`);
   } else {
     p.log.info(
-      "No hard gates set -- left the illustrative placeholder examples in PREFERENCES.md " +
+      "No dealbreakers set -- left the illustrative placeholder examples in PREFERENCES.md " +
         "(clearly marked as such). Edit them there whenever you're ready.",
     );
   }
@@ -136,12 +119,15 @@ async function stepRubricWeights(target: string): Promise<boolean> {
   p.log.step("Rubric weights");
   const dims = await readRubricDimensions(target);
   if (dims.length > 0) {
-    p.log.message(dims.map((d) => `${d.name} -- ${d.weight}%`).join("\n"));
+    p.log.message(renderRubricBars(dims));
   } else {
     p.log.warn("(couldn't find dimension headings in RUBRIC.md to summarize)");
   }
 
-  const keep = await p.confirm({ message: "Keep these defaults for now?", initialValue: true });
+  const keep = await p.confirm({
+    message: "Does this weighting match what actually matters to you?",
+    initialValue: true,
+  });
   const kept = !p.isCancel(keep) && keep;
   if (!kept) {
     p.log.info(
@@ -153,20 +139,20 @@ async function stepRubricWeights(target: string): Promise<boolean> {
 }
 
 async function stepResumeImport(target: string): Promise<string[]> {
-  p.log.step(
-    "Resume / proof-of-work import -- do you have an existing resume, LinkedIn export, or " +
-      "other work-history document to import as a starting point?",
-  );
+  p.log.step("Got a resume or LinkedIn export handy? Import it now as a starting point, or skip for now.");
   const imported: string[] = [];
 
-  let pathStr = await p.text({ message: "Enter a file path, or press Enter to skip", initialValue: "" });
+  let pathStr = await p.text({
+    message: "Drop the file path here (or drag the file in) -- blank to skip",
+    initialValue: "",
+  });
   if (p.isCancel(pathStr)) return imported;
 
   while (pathStr) {
     const src = resolveImportSource(pathStr);
     if (!src) {
       p.log.warn(`No file found at ${pathStr}. Try again, or press Enter to skip.`);
-      const next = await p.text({ message: "Enter a file path, or press Enter to skip", initialValue: "" });
+      const next = await p.text({ message: "Drop the file path here -- blank to skip", initialValue: "" });
       if (p.isCancel(next)) break;
       pathStr = next;
       continue;
@@ -176,9 +162,9 @@ async function stepResumeImport(target: string): Promise<string[]> {
     imported.push(dest);
     p.log.success(`Imported -> ${dest}`);
 
-    const another = await p.confirm({ message: "Add another?", initialValue: false });
+    const another = await p.confirm({ message: "Got another one to import?", initialValue: false });
     if (p.isCancel(another) || !another) break;
-    const next = await p.text({ message: "Enter another file path, or press Enter to skip", initialValue: "" });
+    const next = await p.text({ message: "Drop the next file path here -- blank to skip", initialValue: "" });
     if (p.isCancel(next)) break;
     pathStr = next;
   }
@@ -204,7 +190,7 @@ async function main() {
   p.note(
     [
       `Data directory: ${target}`,
-      `Hard gates: see PREFERENCES.md`,
+      `Dealbreakers: see PREFERENCES.md`,
       imported.length > 0 ? `Imported ${imported.length} file(s): ${imported.join(", ")}` : "Resume import: skipped",
       keptDefaultRubric ? "Rubric weights: kept at the scaffolded defaults." : "Rubric weights: customize in RUBRIC.md",
     ].join("\n"),

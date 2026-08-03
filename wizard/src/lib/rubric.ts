@@ -16,3 +16,17 @@ export async function readRubricDimensions(target: string): Promise<RubricDimens
   }
   return dims;
 }
+
+// A flat "Name -- 25%" list makes relative weight hard to compare at a glance; a bar makes it
+// visually obvious which dimensions actually dominate the score without doing mental math.
+export function renderRubricBars(dims: RubricDimension[], barWidth = 20): string {
+  const nameWidth = Math.max(0, ...dims.map((d) => d.name.length));
+  return dims
+    .map((d) => {
+      const pct = Number(d.weight);
+      const filled = Math.round((pct / 100) * barWidth);
+      const bar = "█".repeat(filled) + "░".repeat(Math.max(barWidth - filled, 0));
+      return `${d.name.padEnd(nameWidth)}  ${bar}  ${d.weight}%`;
+    })
+    .join("\n");
+}

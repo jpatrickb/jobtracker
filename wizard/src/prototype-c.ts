@@ -8,16 +8,16 @@ import * as p from "@clack/prompts";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { runAgentInstallStep } from "./lib/agent-step.js";
+import { isValidCompFloor, parseCompFloor } from "./lib/comp-floor.js";
 import { writeDefaultDataRoot } from "./lib/config.js";
 import type { HardGate } from "./lib/hard-gates.js";
 import { writeHardGates } from "./lib/hard-gates.js";
 import { resolveTarget } from "./lib/paths.js";
-import { readRubricDimensions } from "./lib/rubric.js";
+import { readRubricDimensions, renderRubricBars } from "./lib/rubric.js";
 import { importResumeFile, resolveImportSource } from "./lib/resume-import.js";
 import { isJobtrackerDataDir, runScaffold } from "./lib/scaffold.js";
 
 const DEFAULT_DATA_DIR = join(homedir(), "JobTracker");
-const COMP_PATTERN = /^([\d,]+)\s*(\/\s*(hr|yr|hour|year))?$/i;
 
 async function stepDataDirectory(): Promise<string> {
   const targetStr = await p.text({
@@ -29,7 +29,7 @@ async function stepDataDirectory(): Promise<string> {
 
   if (isJobtrackerDataDir(target)) {
     const reinit = await p.confirm({
-      message: `${target} already exists -- reset it to fresh templates? (your applications database is untouched either way)`,
+      message: `${target} already exists -- reset it back to a blank starting point? (your tracked applications are safe either way)`,
       initialValue: false,
     });
     if (!p.isCancel(reinit) && reinit) {
@@ -56,33 +56,17 @@ async function stepDataDirectory(): Promise<string> {
   return target;
 }
 
-function parseCompFloor(raw: string): HardGate | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(COMP_PATTERN);
-  if (!match) return null;
-  const amount = Number(match[1].replace(/,/g, ""));
-  if (!Number.isFinite(amount)) return null;
-  const unit = (match[3] ?? "yr").toLowerCase();
-  const isHourly = unit.startsWith("h");
-  const formatted = amount.toLocaleString("en-US");
-  const condition = isHourly
-    ? `hourly rate disclosed AND < $${formatted}/hr`
-    : `base salary disclosed AND < $${formatted}`;
-  return { name: "Compensation floor", condition, rejectMessage: "Below comp floor" };
-}
-
 async function stepHardGates(target: string): Promise<void> {
-  p.log.step("Hard gates -- postings that fail any of these get auto-rejected before scoring.");
+  p.log.step(
+    "Let's set up your dealbreakers, so a bad-fit posting gets filtered out automatically " +
+      "instead of wasting your time.",
+  );
   const gates: HardGate[] = [];
 
   const compRaw = await p.text({
-    message: "Compensation floor? e.g. 150000/yr or 75/hr -- blank to skip",
+    message: "What's the least you'd take? (e.g. $90k, 110k/yr, or 75/hr -- blank if you're flexible)",
     initialValue: "",
-    validate: (v) =>
-      (v ?? "").trim() === "" || COMP_PATTERN.test((v ?? "").trim())
-        ? undefined
-        : "e.g. 150000/yr or 75/hr",
+    validate: (v) => (isValidCompFloor(v ?? "") ? undefined : "e.g. $90k, 110k/yr, or 75/hr"),
   });
   if (!p.isCancel(compRaw)) {
     const gate = parseCompFloor(compRaw);
@@ -90,14 +74,14 @@ async function stepHardGates(target: string): Promise<void> {
   }
 
   const locationRaw = await p.text({
-    message: "Location/remote requirement? (e.g. 'fully remote, or hybrid near Austin, TX') -- blank to skip",
+    message: "Where are you willing to work? (e.g. 'remote only', 'Austin or remote') -- blank to skip",
     initialValue: "",
   });
   if (!p.isCancel(locationRaw) && locationRaw.trim()) {
     gates.push({ name: "Location", condition: locationRaw.trim(), rejectMessage: "Location doesn't work" });
   }
 
-  p.log.info('Any other hard requirements? One per line as "name: condition", blank line to finish.');
+  p.log.info('Anything else that\'s an automatic no? One per line as "name: condition", blank line to finish.');
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const line = await p.text({ message: "name: condition (blank to finish)", initialValue: "" });
@@ -118,9 +102,9 @@ async function stepHardGates(target: string): Promise<void> {
 
   const wrote = await writeHardGates(target, gates);
   if (gates.length > 0 && wrote) {
-    p.log.success(`Wrote ${gates.length} hard gate(s) to PREFERENCES.md.`);
+    p.log.success(`Wrote ${gates.length} dealbreaker(s) to PREFERENCES.md.`);
   } else {
-    p.log.info("No hard gates set -- illustrative placeholders left in PREFERENCES.md.");
+    p.log.info("No dealbreakers set -- illustrative placeholders left in PREFERENCES.md.");
   }
 }
 
@@ -128,18 +112,23 @@ async function stepRubricWeights(target: string): Promise<boolean> {
   const dims = await readRubricDimensions(target);
   const summary =
     dims.length > 0
-      ? dims.map((d) => `${d.name} -- ${d.weight}%`).join("\n")
+      ? renderRubricBars(dims)
       : "(couldn't find dimension headings in RUBRIC.md to summarize)";
   p.note(summary, "Rubric weights");
 
-  const keep = await p.confirm({ message: "Keep these defaults for now?", initialValue: true });
+  const keep = await p.confirm({
+    message: "Does this weighting match what actually matters to you?",
+    initialValue: true,
+  });
   return !p.isCancel(keep) && keep;
 }
 
 async function stepResumeImport(target: string): Promise<string[]> {
   const imported: string[] = [];
   const raw = await p.text({
-    message: "Resume/LinkedIn export/work-history docs to import? Comma-separated paths, blank to skip",
+    message:
+      "Got a resume or LinkedIn export handy? Drop the path here (or drag the file in) -- " +
+      "comma-separate more than one, or skip for now",
     initialValue: "",
   });
   if (p.isCancel(raw) || !raw.trim()) return imported;
@@ -178,7 +167,7 @@ async function main() {
   p.note(
     [
       `Data directory: ${target}`,
-      `Hard gates: see PREFERENCES.md`,
+      `Dealbreakers: see PREFERENCES.md`,
       imported.length > 0 ? `Imported ${imported.length} file(s): ${imported.join(", ")}` : "Resume import: skipped",
       keptDefaultRubric ? "Rubric weights: kept at the scaffolded defaults." : "Rubric weights: customize in RUBRIC.md",
     ].join("\n"),

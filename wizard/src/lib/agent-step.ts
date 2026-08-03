@@ -22,17 +22,17 @@ function isDetected(id: PlatformId, detected: ReturnType<typeof detectAgents>): 
 
 export async function runAgentInstallStep(target: string): Promise<void> {
   const runNow = await p.confirm({
-    message: "Set up your coding agent(s) and skills now?",
+    message: "jobtracker's agents do the actual scoring/tailoring/tracking work -- set up yours now?",
     initialValue: true,
   });
   if (p.isCancel(runNow) || !runNow) {
-    p.log.info("Skipping. Run `npx jobtracker-agents` yourself whenever you're ready.");
+    p.log.info("No problem. Run `npx jobtracker-agents` whenever you're ready.");
     return;
   }
 
   const detected = detectAgents();
   const choice = await p.multiselect({
-    message: "Which coding agent(s) do you use?",
+    message: "Which one(s) do you use?",
     options: PLATFORM_IDS.map((id) => ({ value: id, label: PLATFORM_LABELS[id] })),
     initialValues: PLATFORM_IDS.filter((id) => isDetected(id, detected)),
     required: false,
