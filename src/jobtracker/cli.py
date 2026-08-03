@@ -28,8 +28,8 @@ def main():
     p_init.set_defaults(func=cmd_init)
 
     p_setup = sub.add_parser(
-        "setup", help="Interactive first-run wizard: pick a data directory, set hard gates, "
-                       "optionally wire up the Claude Code plugin"
+        "setup", help="Interactive first-run wizard: pick a data directory, install agents/skills "
+                       "for your coding agent"
     )
     p_setup.set_defaults(func=cmd_setup)
 

@@ -23,15 +23,30 @@ const PLATFORM_LABELS: Record<PlatformId, string> = {
 };
 const PLATFORM_IDS = Object.keys(PLATFORM_LABELS) as PlatformId[];
 
+// Only platforms with a CLI that reliably launches an interactive session pre-seeded with a first
+// message ("<bin> '<prompt>'") count as launch-capable. Cursor/Kilo Code are IDE extensions with no
+// CLI launch path at all; Pi's behavior here is unconfirmed as of this writing (conflicting docs,
+// plus an open upstream issue -- earendil-works/pi#46 -- suggesting it may not persist
+// interactively yet), so it's treated the same as the IDE-only platforms for now.
+const LAUNCH_CAPABLE: Partial<Record<PlatformId, string>> = {
+  claude: "claude",
+  codex: "codex",
+};
+
+const ONBOARDING_SEED_PROMPT =
+  "Run the preferences-onboarding skill to set up my job-search preferences (dealbreakers, " +
+  "qualitative preferences, and a rubric walkthrough).";
+
 interface Flags {
   agents: PlatformId[] | null;
   yes: boolean;
   ref: string;
   skills: boolean | null; // null = ask
+  launch: boolean;
 }
 
 function parseArgs(argv: string[]): Flags {
-  const flags: Flags = { agents: null, yes: false, ref: DEFAULT_REF, skills: null };
+  const flags: Flags = { agents: null, yes: false, ref: DEFAULT_REF, skills: null, launch: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--agent" || arg === "--agents") {
@@ -48,6 +63,8 @@ function parseArgs(argv: string[]): Flags {
       flags.skills = true;
     } else if (arg === "--no-skills") {
       flags.skills = false;
+    } else if (arg === "--launch") {
+      flags.launch = true;
     }
   }
   return flags;
@@ -127,6 +144,7 @@ async function main() {
     p.log.info("No coding agent selected -- skipping agent install.");
   }
 
+  const installedOk: PlatformId[] = [];
   for (const id of selected) {
     p.log.step(`Setting up ${PLATFORM_LABELS[id]}...`);
     let outcome: InstallOutcome;
@@ -156,6 +174,7 @@ async function main() {
     }
     if (outcome.ok) {
       p.log.success(outcome.message);
+      installedOk.push(id);
     } else {
       p.log.error(outcome.message);
     }
@@ -168,7 +187,8 @@ async function main() {
     } else {
       const choice = await p.confirm({
         message:
-          "Also install jobtracker's 3 skills (resume-update, resume-onboarding, submit-application) via `npx skills add`?",
+          "Also install jobtracker's 4 skills (resume-update, resume-onboarding, submit-application, " +
+          "preferences-onboarding) via `npx skills add`?",
         initialValue: true,
       });
       installSkills = p.isCancel(choice) ? false : choice;
@@ -186,6 +206,35 @@ async function main() {
       p.log.warn(
         "Skills install didn't finish cleanly. Run it yourself:\n  npx skills add jpatrickb/jobtracker",
       );
+    }
+  }
+
+  // Gated on --launch (only `jobtracker setup` passes it) AND !flags.yes: a --yes/scripted/CI
+  // invocation must never block indefinitely on a live interactive child process as a side effect
+  // -- this also protects a returning user running `npx jobtracker-agents` standalone later "to add
+  // another agent" (see README) from being unexpectedly dropped into a live agent session.
+  if (flags.launch && !flags.yes) {
+    const launchable = installedOk.filter((id) => id in LAUNCH_CAPABLE);
+    if (launchable.length > 0 && process.platform !== "win32") {
+      let chosen: PlatformId = launchable[0];
+      if (launchable.length > 1) {
+        const pick = await p.select({
+          message: "Which one do you want to jump into right now?",
+          options: launchable.map((id) => ({ value: id, label: PLATFORM_LABELS[id] })),
+          initialValue: launchable[0],
+        });
+        if (!p.isCancel(pick)) chosen = pick as PlatformId;
+      }
+      const bin = LAUNCH_CAPABLE[chosen];
+      if (bin) {
+        p.outro(`Launching ${PLATFORM_LABELS[chosen]}...`);
+        // No shell, array-form argv -- the seed prompt reaches the child as one argument regardless
+        // of spaces/punctuation, no quoting to get wrong. A nonzero/undefined exit here isn't a
+        // failure the way it is for the install/skills spawns above: leaving via Ctrl-C, /quit, or
+        // Ctrl-D at the end of a real interactive session is success, not an error to report.
+        spawnSync(bin, [ONBOARDING_SEED_PROMPT], { stdio: "inherit", cwd, shell: false });
+        return;
+      }
     }
   }
 

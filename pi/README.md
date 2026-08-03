@@ -4,7 +4,7 @@
 source at [earendil-works/pi](https://github.com/earendil-works/pi), formerly `badlogic/pi-mono`) is a
 minimal terminal coding harness by Earendil Inc. This directory is jobtracker's Pi port of the 3 agents
 that ship as a Claude Code plugin from the repo root (`agents/job-scorer.md`, `agents/resume-reviewer.md`,
-`agents/tailor-application.md`). The 3 skills (`resume-update`, `resume-onboarding`,
+`agents/tailor-application.md`). The 4 skills (`preferences-onboarding`, `resume-update`, `resume-onboarding`,
 `submit-application`) are **not** ported here — they're plain [Agent Skills](https://agentskills.io),
 and `npx skills add jpatrickb/jobtracker` already installs them cleanly into Pi (and other
 skills-compatible agents) with no jobtracker-specific work needed. This directory is agents only.

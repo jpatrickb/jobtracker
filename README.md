@@ -11,10 +11,12 @@ you control, never inside this package.
 curl -fsSL https://jpatrickb.github.io/jobtracker/install.sh | bash
 ```
 
-Installs via `uv` or `pip`, then launches the setup wizard: picks a data directory, walks through
-your hard gates and rubric, then offers to run `npx jobtracker-agents` — pick which coding agent(s)
-you use and it installs the right files for each, plus your skills, in one step. Not on Node? The
-wizard prints the equivalent manual commands instead — see Supported Platforms below.
+Installs via `uv` or `pip`, then launches the setup wizard: picks a data directory, then offers to
+run `npx jobtracker-agents` — pick which coding agent(s) you use and it installs the right files for
+each, plus your skills. On Claude Code or Codex, it can then drop you straight into a live session
+that's already running the `preferences-onboarding` skill, so the interview (hard gates, qualitative
+preferences, resume import, rubric weights) starts immediately. Not on Node? The wizard prints the
+equivalent manual commands instead — see Supported Platforms below.
 
 ## Supported Platforms
 
@@ -34,9 +36,9 @@ run it yourself anytime to add another agent later, or if you skipped it during 
 | Cursor | `cursor-agents/` | `/add-plugin jpatrickb/jobtracker` (run inside Cursor — this one can't be scripted, `jobtracker-agents` just prints it too) |
 | [Pi](pi/README.md) | `pi/agents/` | see linked docs |
 
-Skills need no per-platform port — `npx skills add jpatrickb/jobtracker` installs all 3
-(`resume-update`, `resume-onboarding`, `submit-application`) on any of the above via
-[Agent Skills](https://agentskills.io). `jobtracker-agents` offers to run this for you too.
+Skills need no per-platform port — `npx skills add jpatrickb/jobtracker` installs all 4
+(`resume-update`, `resume-onboarding`, `submit-application`, `preferences-onboarding`) on any of the
+above via [Agent Skills](https://agentskills.io). `jobtracker-agents` offers to run this for you too.
 
 `AGENTS.md` (not `CLAUDE.md`) is the data directory's instructions file — an agent-agnostic
 convention several tools converge on.
@@ -68,6 +70,7 @@ Then run `npx jobtracker-agents` (or see Supported Platforms above for manual st
 
 | Skill | What it does |
 |---|---|
+| `preferences-onboarding` | Interviews you to set up hard gates, qualitative preferences, and the rubric — usually the first skill you run, often auto-launched right after install. |
 | `resume-update` | General master-resume maintenance. |
 | `resume-onboarding` | One-time interview that builds your evidence ledger (`EVIDENCE.md`, `BULLETS.md`). |
 | `submit-application` | Pre-submit checklist, then a human-confirmation gate before marking a job `Applied`. |

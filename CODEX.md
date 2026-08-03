@@ -6,9 +6,10 @@ This document is the Codex-specific counterpart to the plugin section of the mai
 [README](README.md): what got ported, how it differs from the Claude Code version, and how to
 dispatch these agents reliably today.
 
-**Skills are not part of this port.** jobtracker's 3 skills (`resume-update`, `resume-onboarding`,
-`submit-application`) are plain [Agent Skills](https://agentskills.io) files and already install
-cleanly on Codex via the community [`vercel-labs/skills`](https://github.com/vercel-labs/skills) CLI:
+**Skills are not part of this port.** jobtracker's 4 skills (`preferences-onboarding`, `resume-update`,
+`resume-onboarding`, `submit-application`) are plain [Agent Skills](https://agentskills.io) files and
+already install cleanly on Codex via the community
+[`vercel-labs/skills`](https://github.com/vercel-labs/skills) CLI:
 
 ```bash
 npx skills add jpatrickb/jobtracker

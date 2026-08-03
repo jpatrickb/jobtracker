@@ -23,14 +23,13 @@ current directory — the same marker used elsewhere in this toolkit). If they d
 
 1. **Explicit.** The user asks directly ("build my evidence ledger," "let's do the resume interview,"
    "I haven't set up my resume history yet").
-2. **Hand-off.** The CLI's `jobtracker setup` wizard walks a new user through initial configuration and,
-   as part of that, may stage imported resume files under `resume/imports/` (see the step below) and
-   hand off here to turn them into a real ledger. `tailor-application` or `resume-update` can also find
-   `EVIDENCE.md` missing or empty mid-task, offer the user a choice between building it now or deferring,
-   and hand off directly here if the user picks now, rather than running its own improvised version of
-   this interview. If the user instead picks later, don't run this skill; the calling agent/skill falls
-   back to its own narrower, per-application ad hoc question and this ledger just stays unbuilt until the
-   user comes back to it.
+2. **Hand-off.** The `preferences-onboarding` skill runs first for a new user (hard gates, qualitative
+   preferences, an optional rubric walkthrough) and hands off here once that's settled, to build the
+   evidence ledger. `tailor-application` or `resume-update` can also find `EVIDENCE.md` missing or empty
+   mid-task, offer the user a choice between building it now or deferring, and hand off directly here if
+   the user picks now, rather than running its own improvised version of this interview. If the user
+   instead picks later, don't run this skill; the calling agent/skill falls back to its own narrower,
+   per-application ad hoc question and this ledger just stays unbuilt until the user comes back to it.
 
 ## What this skill does not build
 
@@ -92,16 +91,19 @@ an accomplishment.
 
 ## Workflow
 
-### 1. Check for staged imports first
+### 1. Check for an existing resume or export, staged or not
 
-Before anything else, check `resume/imports/` (relative to the data directory) for files. This is where
-the CLI's `jobtracker setup` wizard (or a user directly) stages a downloaded resume, a LinkedIn export, or
-similar, so the interview can start from real content instead of a blank page.
+Check `resume/imports/` (relative to the data directory) for files first — a power user may have
+dropped one there ahead of time. If it's empty, don't assume there's nothing to import: ask the user
+directly whether they have a resume, LinkedIn export, or other work-history document handy. If they
+name a path, `Read` it wherever it lives (Read handles PDF/docx/text without any conversion step) —
+there's no need to copy it into `resume/imports/` first, that directory only ever mattered as a
+staging spot for a tool that couldn't read files itself. Offer to save a copy there afterward if the
+user wants one preserved, but don't make it a precondition for reading the file.
 
-If any files are there:
+If a document turns up either way:
 
-- Read each one directly (Read handles PDF/docx/text without any conversion step).
-- Draft candidate `EVIDENCE.md` entries from what they actually contain: real accomplishments, roles, and
+- Draft candidate `EVIDENCE.md` entries from what it actually contains: real accomplishments, roles, and
   dates the document states, not generic duties language pulled from a job title.
 - Walk the user through the candidates one at a time, the same way step 3 below walks through a cold
   interview answer: confirm each one, correct anything wrong or vague, and tag it (SHIPPED /
@@ -109,11 +111,11 @@ If any files are there:
   what the user *claimed* at the time, not a verified source on its own, so still ask where each one
   came from (step 2 of the core interview loop) before tagging anything SHIPPED.
 - Once the imported candidates are settled, keep going with the normal interview loop below for whatever
-  the imports didn't cover: a role the import barely mentioned, a source none of the imported material
-  states, or anything too recent to be in an old document.
+  the import didn't cover: a role it barely mentioned, a source none of the imported material states, or
+  anything too recent to be in an old document.
 
-If `resume/imports/` is empty or doesn't exist, skip this step entirely and fall back to the cold-interview
-flow in the rest of this section, completely unchanged.
+If there's no file and the user doesn't have one to offer, skip this step entirely and fall back to the
+cold-interview flow in the rest of this section, completely unchanged.
 
 ### 2. Check what's already there
 

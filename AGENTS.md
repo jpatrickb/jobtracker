@@ -13,8 +13,9 @@ Two things, sharing one root:
 - **A Python CLI** (`src/jobtracker/`) — installable via `pip`/`uv tool install`, gives users the
   `jobtracker`/`jta` commands.
 - **A Claude Code plugin** (`.claude-plugin/`, `agents/`, `skills/`) — 3 agents dispatched
-  independently/in bulk (`job-scorer`, `resume-reviewer`, `tailor-application`), 3 skills run
-  conversationally (`resume-update`, `resume-onboarding`, `submit-application`).
+  independently/in bulk (`job-scorer`, `resume-reviewer`, `tailor-application`), 4 skills run
+  conversationally (`preferences-onboarding`, `resume-update`, `resume-onboarding`,
+  `submit-application`).
 
 Neither half contains any real user data. All of that (scores, applications, resume content) lives
 in a separate directory the *end user* controls, created by `jobtracker init`/`setup` from the
@@ -30,11 +31,11 @@ templates bundled at `src/jobtracker/templates/`.
 | `src/jobtracker/wizard.py` | The interactive `jobtracker setup` wizard. |
 | `src/jobtracker/{commands,doctor,facts,listings,scoring,render}.py` | CLI subcommand implementations. |
 | `src/jobtracker/templates/` | Bundled, generic starting content for a new data directory (`RUBRIC.md`, `PREFERENCES.md`, `SCORING.md`, `AGENTS.md`, etc.) — package data, shipped inside the wheel. |
-| `agents/`, `skills/` | The Claude Code plugin content. Every one of these six files starts with a "confirm this is a set-up jobtracker data directory" guard — don't remove it, it's what stops an agent from improvising when dispatched somewhere `jobtracker setup` hasn't run yet. |
+| `agents/`, `skills/` | The Claude Code plugin content. Every one of these seven files starts with a "confirm this is a set-up jobtracker data directory" guard — don't remove it, it's what stops an agent from improvising when dispatched somewhere `jobtracker setup` hasn't run yet. |
 | `resume-templates/` | Typst resume/cover-letter templates `tailor-application` fills in per application. |
 | `.claude-plugin/` | `plugin.json` + `marketplace.json` (shared-root pattern — this repo is both the plugin and its own marketplace). |
 | `smoke_test.sh` | Before/after behavioral snapshot for the CLI — there's no real test suite yet, this is what CI runs. |
-| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each. `wizard.py`'s `_step_agent_install` shells out to it, falling back to a manual per-platform table if Node/npx isn't available. |
+| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each, then — on Claude Code/Codex, when invoked with `--launch` — spawns straight into a live session with `preferences-onboarding` queued up as the first message. `wizard.py`'s `_step_agent_install` shells out to it (passing `--launch`), falling back to a manual per-platform table if Node/npx isn't available. |
 
 ## Conventions worth knowing before editing
 
@@ -43,8 +44,12 @@ templates bundled at `src/jobtracker/templates/`.
   self-dispatch another subagent — that's why `tailor-application` ends every run with an explicit
   `**NEEDS REVIEW**` line rather than calling `resume-reviewer` itself. Don't reintroduce a
   self-dispatch assumption into agent-side instructions.
-- **The three skills (`resume-update`, `resume-onboarding`, `submit-application`) are conversational**
-  and assume they're running inline in the user's own session, not bulk-dispatched.
+- **The four skills (`preferences-onboarding`, `resume-update`, `resume-onboarding`,
+  `submit-application`) are conversational** and assume they're running inline in the user's own
+  session, not bulk-dispatched. `preferences-onboarding` replaces what `wizard.py` used to collect
+  directly (hard gates, rubric weights, resume import) -- a conversational interview fits that content
+  better than a fixed prompt sequence, and reaches PREFERENCES.md's qualitative-preferences prose and
+  RUBRIC.md's per-dimension descriptions, which nothing ever collected before.
 - **Data-root resolution has three tiers, in order**: `JOBTRACKER_DATA_ROOT`/`JOBTRACKER_DATA_FILE`
   env vars, a `.jobtracker/` marker-directory walk-up from `cwd` (git-style), then the default
   recorded in `~/.config/jobtracker/config.toml`. See `store.find_data_root()`.
@@ -71,16 +76,23 @@ same thing a real user would do, so it's the right test.
 
 ## What's not built yet
 
-See open issues on this repo. As of the ports landing, the setup wizard has arrow-key select
-menus (with a numbered-list fallback for non-interactive use), and the plugin's 3 dispatchable
-agents (`job-scorer`, `resume-reviewer`, `tailor-application`) are ported to Codex (`.codex/`),
-Kilo Code (`.kilo/`), Cursor (`.cursor-plugin/`, `cursor-agents/`), and Pi (`pi/`) alongside the
-original Claude Code plugin — see README's "Supported platforms" section. The 3 skills are
-covered on all of those via `npx skills add jpatrickb/jobtracker` rather than a per-platform port.
-Installing agents across all of those platforms is now unified behind `npx jobtracker-agents`
+See open issues on this repo. The plugin's 3 dispatchable agents (`job-scorer`, `resume-reviewer`,
+`tailor-application`) are ported to Codex (`.codex/`), Kilo Code (`.kilo/`), Cursor
+(`.cursor-plugin/`, `cursor-agents/`), and Pi (`pi/`) alongside the original Claude Code plugin — see
+README's "Supported platforms" section. The 4 skills are covered on all of those via
+`npx skills add jpatrickb/jobtracker` rather than a per-platform port.
+Installing agents across all of those platforms is unified behind `npx jobtracker-agents`
 (`installer/`) — pick which agent(s) you use, it installs the right files for each and offers
 skills too; `jobtracker setup` runs it automatically when Node is on PATH, falling back to printing
 manual per-platform commands otherwise.
+`jobtracker setup` itself now does very little beyond that hand-off (data directory + global config)
+-- hard gates, qualitative preferences, resume import, and the rubric walkthrough all moved into the
+`preferences-onboarding` skill, which `npx jobtracker-agents --launch` drops the user straight into
+on Claude Code/Codex once agents/skills are installed (Cursor/Kilo Code/Pi fall back to a printed
+instruction to run the skill manually, same as they do for agent installation itself). The old
+`curses`-based Y/N menu this replaced (`curses_ui.py`) is still used for the two Y/N confirms
+`cmd_setup` has left (the reinit-existing-directory confirm, and "set up your coding agent(s) now?")
+but is no longer the primary onboarding UX.
 Both packages are published: `jobtracker` on PyPI (tag `v<version>` + a GitHub Release triggers
 `.github/workflows/publish.yml`) and `jobtracker-agents` on npm (bump `installer/package.json`'s
 version and merge to `main` — `.github/workflows/publish-installer.yml` takes it from there, no

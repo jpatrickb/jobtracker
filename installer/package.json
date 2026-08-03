@@ -1,6 +1,6 @@
 {
   "name": "jobtracker-agents",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Installs jobtracker's agents (job-scorer, resume-reviewer, tailor-application) for whichever coding agent(s) you use, and offers to install its skills too.",
   "license": "MIT",
   "author": {
