@@ -1,91 +1,24 @@
-"""`jobtracker setup`: interactive first-run wizard (see cli.py).
+"""`jobtracker setup`: hands off to `jobtracker-agents` (see ../../installer/).
 
 Also what bare `jobtracker` (no subcommand) launches automatically the first time it's run with
 no default data directory configured -- see main() in cli.py.
 
-Hard gates, qualitative preferences, the rubric walkthrough, and resume import all used to be
-collected here directly. They now live in the `preferences-onboarding` coding-agent skill instead --
-a conversational interview handles "what's the least you'd take" ($90k, 110k/yr, whatever the user
-actually says) far better than a fixed prompt sequence ever could, and it reaches content this wizard
-never touched at all (PREFERENCES.md's qualitative-preferences prose, RUBRIC.md's per-dimension
-descriptions). This file's job shrinks to: create the data directory, remember it globally, and hand
-off to `jobtracker-agents` for agent/skill installation -- which, on platforms that support it, also
-launches straight into a live agent session with that skill already queued up as the first message.
+Every interactive step used to live here directly: pick a data directory, hard gates, rubric
+weights, resume import, "set up your coding agent(s) now?". All of it has moved -- the data
+directory picker into `jobtracker-agents` (a proper `@clack/prompts` flow instead of this file's
+plain `rich`/`curses` prompts), and hard gates/preferences/rubric/resume import into the
+`preferences-onboarding` coding-agent skill, which a conversational interview suits far better than
+a fixed prompt sequence ever could ("what's the least you'd take" gets "$90k, though I'd flex for
+the right team" as an answer, not a rigid amount-then-unit form). This file's only job now is the
+hand-off itself: find Node, run `jobtracker-agents` unconditionally (no confirmation prompt of its
+own), and print manual fallback instructions if Node isn't available.
 """
 
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 from rich.console import Console
-from rich.prompt import Prompt
-
-from . import config
-from .curses_ui import prompt_choice
-from .init import scaffold
-from .store import MARKER_DIRNAME
-
-DEFAULT_DATA_DIR = Path.home() / "JobTracker"
-
-
-def cmd_setup(args=None):
-    console = Console(no_color=bool(getattr(args, "plain", False)))
-
-    console.print("[bold]jobtracker setup[/bold]\n")
-    console.print("Let's get your job-search data directory set up.\n")
-
-    target = _step_data_directory(console)
-    _step_remember_globally(console, target)
-    agents_installed = _step_agent_install(console, target)
-
-    _step_summary(console, target, agents_installed)
-
-
-def _step_data_directory(console):
-    target_str = Prompt.ask(
-        "Where should your job-search data live?", default=str(DEFAULT_DATA_DIR)
-    )
-    target = Path(target_str).expanduser().resolve()
-    marker = target / MARKER_DIRNAME
-
-    if marker.is_dir():
-        console.print(f"\n{target} is already a jobtracker data directory.")
-        reinit = (
-            prompt_choice(
-                console,
-                "Reinitialize it? (resets scaffolded files back to their templates; your "
-                ".jobtracker/applications.json is untouched either way)",
-                ["No", "Yes"],
-                default="No",
-            )
-            == "Yes"
-        )
-        if reinit:
-            created = scaffold(target, force=True)
-            console.print(f"\nReinitialized {target}.")
-        else:
-            created = []
-            console.print(f"\nUsing {target} as-is.")
-    else:
-        created = scaffold(target)
-        console.print(f"\nCreated a fresh jobtracker data directory at {target}.")
-
-    if created:
-        console.print("Created:")
-        for path in created:
-            console.print(f"  {path}")
-
-    return target
-
-
-def _step_remember_globally(console, target):
-    config.write_default_data_root(target)
-    console.print(
-        f"\nRemembered {target} as your default data directory "
-        f"({config.config_path()}), so bare `jobtracker` works from anywhere now.\n"
-    )
-
 
 _MANUAL_AGENT_TABLE = (
     "\nInstall agents/skills for your coding agent yourself:\n"
@@ -97,25 +30,23 @@ _MANUAL_AGENT_TABLE = (
     "  Pi          -- see pi/README.md\n"
     "  Skills (any of the above) -- npx skills add jpatrickb/jobtracker\n"
     "\n"
-    "Once installed, open your coding agent in this directory and run the "
-    "`preferences-onboarding` skill -- hard gates, qualitative preferences, resume import, and "
-    "the rubric walkthrough all get set up there now."
+    "Once installed, open your coding agent in a jobtracker data directory (`jobtracker init` "
+    "creates one) and run the `preferences-onboarding` skill -- hard gates, qualitative "
+    "preferences, resume import, and the rubric walkthrough all get set up there now."
 )
 
 
-def _step_agent_install(console, target):
-    """Delegates agent+skill installation (and, on Claude Code/Codex, launching straight into a
-    live session with `preferences-onboarding` already queued up) to the `jobtracker-agents` npx
-    tool (see ../../installer/). Falls back to printing the manual per-platform table on any
-    failure -- missing npx, a network error, a nonzero exit, or simply the npm package not being
-    published yet -- since this step is optional and should never hard-fail the wizard."""
+def cmd_setup(args=None):
+    console = Console(no_color=bool(getattr(args, "plain", False)))
+
     npx_bin = shutil.which("npx")
     if not npx_bin:
+        console.print("[bold]jobtracker setup[/bold]\n")
         if shutil.which("node"):
             # The single most common way to hit this: on Debian/Ubuntu, `nodejs` and `npm` are
             # separate apt packages, so `apt install nodejs` alone doesn't pull in npm/npx -- node
-            # being present is not the same as npx being present, and the generic "install Node.js"
-            # message below doesn't help someone who's already done exactly that.
+            # being present is not the same as npx being present, and a generic "install Node.js"
+            # message doesn't help someone who's already done exactly that.
             console.print(
                 "[yellow]Node.js is installed, but `npx` isn't on PATH. On Debian/Ubuntu, "
                 "`nodejs` and `npm` are separate packages -- `apt install nodejs` alone doesn't "
@@ -124,27 +55,12 @@ def _step_agent_install(console, target):
             )
         else:
             console.print(
-                "[yellow]`npx` not found -- hard gates, preferences, resume import, and the rubric "
-                "walkthrough all live behind a coding-agent skill now, so you'll need Node.js and "
-                "at least one coding agent installed to finish setup.[/yellow]"
+                "[yellow]`npx` not found -- picking/creating your data directory, hard gates, "
+                "preferences, resume import, and the rubric walkthrough all live behind Node.js and "
+                "a coding-agent skill now, so you'll need both installed to finish setup.[/yellow]"
             )
         console.print(_MANUAL_AGENT_TABLE)
-        return False
-
-    console.print("\n[bold]Coding agent setup[/bold]\n")
-    if (
-        prompt_choice(
-            console,
-            "Set up your coding agent(s) and skills now? (On Claude Code/Codex, this can drop "
-            "you straight into a live session to get started.)",
-            ["Yes", "No"],
-            default="Yes",
-        )
-        != "Yes"
-    ):
-        console.print("Skipping. Run this yourself whenever you're ready:")
-        console.print("  npx jobtracker-agents@latest")
-        return False
+        return
 
     try:
         # npx/npm ship as .cmd shims on Windows; subprocess with shell=False won't resolve those
@@ -154,39 +70,14 @@ def _step_agent_install(console, target):
             command = ["cmd", "/c", "npx", "--yes", "jobtracker-agents@latest", "--launch"]
         else:
             command = [npx_bin, "--yes", "jobtracker-agents@latest", "--launch"]
-        # No timeout: unlike a fast, non-interactive shell-out, this spawns an interactive
-        # multiselect session (and possibly a full agent session afterward) a human is actively
-        # driving -- inherited stdio, same as every other subprocess call in this file.
-        result = subprocess.run(command, cwd=target)
+        # No timeout, no cwd: jobtracker-agents now owns picking/creating the data directory
+        # itself (including `cd`-ing into it internally) and, on Claude Code/Codex, launching a
+        # full interactive agent session afterward -- inherited stdio throughout, same as every
+        # other subprocess call in this file used to be.
+        result = subprocess.run(command)
         if result.returncode != 0:
             raise RuntimeError(f"jobtracker-agents exited {result.returncode}")
     except Exception as exc:
+        console.print("[bold]jobtracker setup[/bold]\n")
         console.print(f"[yellow]Couldn't run jobtracker-agents ({exc}).[/yellow]")
         console.print(_MANUAL_AGENT_TABLE)
-        return False
-
-    return True
-
-
-def _step_summary(console, target, agents_installed):
-    console.print("\n[bold]Summary[/bold]\n")
-    console.print(f"  Data directory: {target}")
-    console.print(f"  Remembered globally: yes ({config.config_path()})")
-    if agents_installed:
-        console.print("  Coding agent setup: ran via jobtracker-agents")
-    else:
-        console.print(
-            "  Coding agent setup: not run automatically -- see the commands printed above"
-        )
-
-    if agents_installed:
-        console.print(
-            "\nIf you weren't just dropped into a live agent session above, open your coding "
-            "agent in this directory and run the `preferences-onboarding` skill to get started -- "
-            "that's where hard gates, preferences, resume import, and the rubric all get set up."
-        )
-    else:
-        console.print(
-            "\n[bold]Next step:[/bold] once your coding agent is installed, open it in this "
-            "directory and run the `preferences-onboarding` skill to get started."
-        )

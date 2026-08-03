@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import * as p from "@clack/prompts";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { detectAgents } from "./detect.js";
 import { installClaude } from "./install/claude.js";
 import { installCodex } from "./install/codex.js";
@@ -10,6 +10,9 @@ import { installCursor } from "./install/cursor.js";
 import { installKilo } from "./install/kilo.js";
 import { installPi, type PiScope } from "./install/pi.js";
 import type { InstallOutcome } from "./install/types.js";
+import { writeDefaultDataRoot } from "./lib/config.js";
+import { resolveTarget } from "./lib/paths.js";
+import { isJobtrackerDataDir, runScaffold } from "./lib/scaffold.js";
 import { DEFAULT_REF } from "./manifest.js";
 
 type PlatformId = "claude" | "codex" | "kilo" | "cursor" | "pi";
@@ -36,6 +39,8 @@ const LAUNCH_CAPABLE: Partial<Record<PlatformId, string>> = {
 const ONBOARDING_SEED_PROMPT =
   "Run the preferences-onboarding skill to set up my job-search preferences (dealbreakers, " +
   "qualitative preferences, and a rubric walkthrough).";
+
+const DEFAULT_DATA_DIR = join(homedir(), "JobTracker");
 
 interface Flags {
   agents: PlatformId[] | null;
@@ -70,10 +75,6 @@ function parseArgs(argv: string[]): Flags {
   return flags;
 }
 
-function isJobtrackerDataDir(cwd: string): boolean {
-  return existsSync(resolve(cwd, ".jobtracker"));
-}
-
 function isDetected(id: PlatformId, detected: ReturnType<typeof detectAgents>): boolean {
   switch (id) {
     case "claude":
@@ -101,38 +102,75 @@ async function pickScope(): Promise<PiScope | null> {
   return scopeChoice as PiScope;
 }
 
+// Runs `jobtracker init`/scaffolding and picks a target directory the same way the old Python
+// wizard did -- but as part of this same clack-driven flow, not a separate plain-text prompt
+// beforehand. If cwd is already a jobtracker data directory (the "standalone re-run to add another
+// agent" case README documents), this is a no-op and that directory is used as-is.
+async function ensureDataDirectory(flags: Flags): Promise<string> {
+  const startCwd = process.cwd();
+  if (isJobtrackerDataDir(startCwd)) {
+    return startCwd;
+  }
+
+  let target: string;
+  if (flags.yes) {
+    target = resolveTarget(DEFAULT_DATA_DIR);
+  } else {
+    const targetStr = await p.text({
+      message: "Where should your job-search data live?",
+      initialValue: DEFAULT_DATA_DIR,
+    });
+    if (p.isCancel(targetStr)) {
+      p.cancel("Cancelled.");
+      process.exit(1);
+    }
+    target = resolveTarget(targetStr as string);
+  }
+
+  // Capture this *before* runScaffold below -- it creates the .jobtracker/ marker as a side
+  // effect, so checking isJobtrackerDataDir(target) afterward would always say "already exists"
+  // regardless of what was actually true beforehand.
+  const alreadyExisted = isJobtrackerDataDir(target);
+
+  let reinit = false;
+  if (alreadyExisted && !flags.yes) {
+    const reinitChoice = await p.confirm({
+      message: `${target} already exists. Reset it back to a blank starting point? (your tracked applications are safe either way)`,
+      initialValue: false,
+    });
+    reinit = !p.isCancel(reinitChoice) && reinitChoice;
+  }
+
+  if (alreadyExisted && !reinit) {
+    // Nothing to do: `jobtracker init` (without --force) on an already-scaffolded directory just
+    // refuses with a nonzero exit -- correct behavior for the CLI, but not something to treat as
+    // a failure here. Using it as-is means not calling it at all.
+    p.log.success(`Using ${target} as-is.`);
+  } else {
+    const result = runScaffold(target, reinit);
+    if (result.output) p.log.message(result.output);
+    if (!result.ok) {
+      p.cancel("`jobtracker init` failed -- is the jobtracker CLI installed and on PATH?");
+      process.exit(1);
+    }
+    p.log.success(
+      reinit ? `Reinitialized ${target}.` : `Created a fresh jobtracker data directory at ${target}.`,
+    );
+  }
+
+  const configPath = await writeDefaultDataRoot(target);
+  p.log.success(`Remembered ${target} as your default data directory (${configPath}).`);
+
+  process.chdir(target);
+  return target;
+}
+
 async function main() {
   const flags = parseArgs(process.argv.slice(2));
-  const cwd = process.cwd();
 
   p.intro("jobtracker-agents");
 
-  if (!isJobtrackerDataDir(cwd)) {
-    if (flags.launch) {
-      // Continuing here would install files into the wrong place, then try to launch an agent
-      // into a directory preferences-onboarding's own guard clause immediately rejects (no
-      // PREFERENCES.md/RUBRIC.md) -- a confusing dead end, not a real "continue anyway" option.
-      p.cancel(
-        `${cwd} isn't a jobtracker data directory yet, so --launch has nothing to hand off to ` +
-          "(preferences-onboarding needs PREFERENCES.md/RUBRIC.md to already exist). Run " +
-          "`jobtracker setup` first, or cd into an existing data directory and try again.",
-      );
-      process.exitCode = 1;
-      return;
-    }
-
-    const message = `${cwd} doesn't look like a jobtracker data directory (no .jobtracker/ marker) -- project-scoped agent files would land here anyway.`;
-    if (flags.yes) {
-      p.log.warn(message);
-    } else {
-      const proceed = await p.confirm({ message: `${message} Continue?`, initialValue: false });
-      if (p.isCancel(proceed) || !proceed) {
-        p.cancel("Stopped -- cd into your jobtracker data directory and try again.");
-        process.exitCode = 1;
-        return;
-      }
-    }
-  }
+  const cwd = await ensureDataDirectory(flags);
 
   let selected: PlatformId[];
   if (flags.agents) {

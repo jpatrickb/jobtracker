@@ -28,14 +28,14 @@ templates bundled at `src/jobtracker/templates/`.
 | `src/jobtracker/store.py` | Data-root resolution (env var → cwd marker-directory walk-up → global config default), record persistence, id lookup. |
 | `src/jobtracker/config.py` | The global `~/.config/jobtracker/config.toml` default-data-root file `jobtracker setup` writes. |
 | `src/jobtracker/init.py` | `scaffold()` (shared by `init` and `setup`) — creates a fresh data directory from `templates/`, including the `AGENTS.md`→`CLAUDE.md` symlink. |
-| `src/jobtracker/wizard.py` | The interactive `jobtracker setup` wizard. |
+| `src/jobtracker/wizard.py` | `jobtracker setup` -- hands off to `jobtracker-agents`; no prompts of its own. |
 | `src/jobtracker/{commands,doctor,facts,listings,scoring,render}.py` | CLI subcommand implementations. |
 | `src/jobtracker/templates/` | Bundled, generic starting content for a new data directory (`RUBRIC.md`, `PREFERENCES.md`, `SCORING.md`, `AGENTS.md`, etc.) — package data, shipped inside the wheel. |
 | `agents/`, `skills/` | The Claude Code plugin content. Every one of these seven files starts with a "confirm this is a set-up jobtracker data directory" guard — don't remove it, it's what stops an agent from improvising when dispatched somewhere `jobtracker setup` hasn't run yet. |
 | `resume-templates/` | Typst resume/cover-letter templates `tailor-application` fills in per application. |
 | `.claude-plugin/` | `plugin.json` + `marketplace.json` (shared-root pattern — this repo is both the plugin and its own marketplace). |
 | `smoke_test.sh` | Before/after behavioral snapshot for the CLI — there's no real test suite yet, this is what CI runs. |
-| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each, then — on Claude Code/Codex, when invoked with `--launch` — spawns straight into a live session with `preferences-onboarding` queued up as the first message. `wizard.py`'s `_step_agent_install` shells out to it (passing `--launch`), falling back to a manual per-platform table if Node/npx isn't available. |
+| `installer/` | `jobtracker-agents`, a standalone TypeScript/`@clack/prompts` npm package (invoked via `npx jobtracker-agents`) that picks/creates the data directory (`src/lib/scaffold.ts`/`config.ts`, shelling out to `jobtracker init`), lets a user pick which coding agent(s) they use and installs the right agent files (and offers skills) for each, then — on Claude Code/Codex, when invoked with `--launch` — spawns straight into a live session with `preferences-onboarding` queued up as the first message. `wizard.py`'s `cmd_setup` shells out to it (passing `--launch`), falling back to a manual per-platform table if Node/npx isn't available. |
 
 ## Conventions worth knowing before editing
 
@@ -85,14 +85,13 @@ Installing agents across all of those platforms is unified behind `npx jobtracke
 (`installer/`) — pick which agent(s) you use, it installs the right files for each and offers
 skills too; `jobtracker setup` runs it automatically when Node is on PATH, falling back to printing
 manual per-platform commands otherwise.
-`jobtracker setup` itself now does very little beyond that hand-off (data directory + global config)
--- hard gates, qualitative preferences, resume import, and the rubric walkthrough all moved into the
-`preferences-onboarding` skill, which `npx jobtracker-agents --launch` drops the user straight into
-on Claude Code/Codex once agents/skills are installed (Cursor/Kilo Code/Pi fall back to a printed
-instruction to run the skill manually, same as they do for agent installation itself). The old
-`curses`-based Y/N menu this replaced (`curses_ui.py`) is still used for the two Y/N confirms
-`cmd_setup` has left (the reinit-existing-directory confirm, and "set up your coding agent(s) now?")
-but is no longer the primary onboarding UX.
+`jobtracker setup` itself is now just the hand-off: it has no prompts of its own at all.
+`jobtracker-agents` (`installer/`) owns every interactive step -- picking/creating the data directory
+(`installer/src/lib/scaffold.ts`/`config.ts`, shelling out to `jobtracker init` the same way the old
+Python prompts used to), which coding agent(s) to install, and, on Claude Code/Codex, launching
+straight into a live session with the `preferences-onboarding` skill already queued up (Cursor/Kilo
+Code/Pi fall back to a printed instruction to run the skill manually). `curses_ui.py` is deleted --
+there is no `curses`-based UI left anywhere in this codebase.
 Both packages are published: `jobtracker` on PyPI (tag `v<version>` + a GitHub Release triggers
 `.github/workflows/publish.yml`) and `jobtracker-agents` on npm (bump `installer/package.json`'s
 version and merge to `main` — `.github/workflows/publish-installer.yml` takes it from there, no
