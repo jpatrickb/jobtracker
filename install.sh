@@ -2,10 +2,12 @@
 # Thin convenience installer for jobtracker: curl -fsSL <pages-url>/install.sh | bash
 #
 # This is NOT a git-clone-based installer -- jobtracker is a single small wheel with no native
-# dependencies, so that heavier model doesn't apply here. All this script does is pick whichever
-# of uv/pip is already on PATH (preferring uv), install jobtracker with it, and hand off to the
-# interactive setup wizard. `pip install jobtracker` / `uv tool install jobtracker` remain the
-# real, documented install paths (see README) -- this is just a shortcut on top of them.
+# dependencies, so that heavier model doesn't apply here. This script always prefers uv (installing
+# it first if it isn't already on PATH) and only falls back to a bare system pip if uv genuinely
+# isn't available -- most current Linux distros (Debian/Ubuntu 23.04+, etc.) ship a PEP 668
+# "externally-managed-environment" Python that refuses a plain `pip install` outright, and uv's
+# isolated tool installs sidestep that entirely. `pip install jobtracker` / `uv tool install
+# jobtracker` remain the real, documented install paths (see README) -- this is just a shortcut.
 #
 # NOTE: this always installs tip-of-main via whatever `jobtracker` build is on PyPI at the time
 # uv/pip resolve it -- there's no version pinning here. Both uv and pip treat an already-installed
@@ -40,24 +42,43 @@ ensure_uv_on_path() {
   done
 }
 
+pip_fallback() {
+  # Last resort, only reached when uv genuinely isn't available. A plain `pip install` errors
+  # outright on a PEP 668 "externally-managed-environment" Python (the default on current
+  # Debian/Ubuntu) -- retry with the override pip's own error message recommends once that
+  # specific error is confirmed, rather than reaching for it unconditionally on every platform.
+  pip_bin="$(command -v pip || command -v pip3)"
+  log "uv isn't available; falling back to $pip_bin..."
+  if pip_output=$("$pip_bin" install --user --upgrade jobtracker 2>&1); then
+    echo "$pip_output"
+    return 0
+  fi
+  echo "$pip_output"
+  if echo "$pip_output" | grep -q "externally-managed-environment"; then
+    log "System pip is externally managed (PEP 668) -- retrying with --break-system-packages..."
+    "$pip_bin" install --user --upgrade --break-system-packages jobtracker
+  else
+    return 1
+  fi
+}
+
 if command -v uv >/dev/null 2>&1; then
   log "Found uv on PATH, installing jobtracker with it..."
   uv tool install --reinstall jobtracker
-elif command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1; then
-  pip_bin="$(command -v pip || command -v pip3)"
-  log "Found $pip_bin on PATH, installing jobtracker with it..."
-  "$pip_bin" install --user --upgrade jobtracker
 else
-  log "Neither uv nor pip found on PATH. Installing uv first..."
+  log "uv not found on PATH, installing it first..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
   ensure_uv_on_path
-  if ! command -v uv >/dev/null 2>&1; then
-    echo "uv installation succeeded but 'uv' still isn't on PATH. Open a new shell and re-run" >&2
-    echo "this script, or run 'uv tool install jobtracker' yourself." >&2
+  if command -v uv >/dev/null 2>&1; then
+    log "Installing jobtracker with uv..."
+    uv tool install --reinstall jobtracker
+  elif command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1; then
+    pip_fallback
+  else
+    echo "Couldn't install uv, and no pip/pip3 found either. Install Python (with pip), or uv," >&2
+    echo "and re-run this script." >&2
     exit 1
   fi
-  log "Installing jobtracker with uv..."
-  uv tool install --reinstall jobtracker
 fi
 
 log "jobtracker installed. Launching setup..."
