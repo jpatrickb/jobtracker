@@ -111,11 +111,23 @@ def _step_agent_install(console, target):
     published yet -- since this step is optional and should never hard-fail the wizard."""
     npx_bin = shutil.which("npx")
     if not npx_bin:
-        console.print(
-            "[yellow]`npx` not found -- hard gates, preferences, resume import, and the rubric "
-            "walkthrough all live behind a coding-agent skill now, so you'll need Node.js and at "
-            "least one coding agent installed to finish setup.[/yellow]"
-        )
+        if shutil.which("node"):
+            # The single most common way to hit this: on Debian/Ubuntu, `nodejs` and `npm` are
+            # separate apt packages, so `apt install nodejs` alone doesn't pull in npm/npx -- node
+            # being present is not the same as npx being present, and the generic "install Node.js"
+            # message below doesn't help someone who's already done exactly that.
+            console.print(
+                "[yellow]Node.js is installed, but `npx` isn't on PATH. On Debian/Ubuntu, "
+                "`nodejs` and `npm` are separate packages -- `apt install nodejs` alone doesn't "
+                "pull in npm/npx. Install npm too (`apt install npm`), or use nvm or Node's own "
+                "installer, which bundle npm/npx with node -- then re-run `jobtracker setup`.[/yellow]"
+            )
+        else:
+            console.print(
+                "[yellow]`npx` not found -- hard gates, preferences, resume import, and the rubric "
+                "walkthrough all live behind a coding-agent skill now, so you'll need Node.js and "
+                "at least one coding agent installed to finish setup.[/yellow]"
+            )
         console.print(_MANUAL_AGENT_TABLE)
         return False
 
