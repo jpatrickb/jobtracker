@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "installer/**"
+  workflow_dispatch: {}
 
 jobs:
   publish:
